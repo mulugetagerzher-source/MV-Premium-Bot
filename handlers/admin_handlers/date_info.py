@@ -35,17 +35,25 @@ async def show_date_info(message: types.Message):
         s_raw = user.get("start_date")  or ""
         e_raw = user.get("expiry_date") or ""
 
-        try:
-            s_date = datetime.strptime(s_raw, "%Y-%m-%d %H:%M:%S").strftime("%d/%m/%y")
-        except Exception:
-            s_date = "N/A"
+        def _parse_date(raw):
+            if not raw:
+                return None
+            try:
+                # Handle ISO format (2026-10-04T19:42:19) or space format
+                cleaned = str(raw).replace("T", " ").split(".")[0].split("+")[0].strip()
+                return datetime.strptime(cleaned, "%Y-%m-%d %H:%M:%S")
+            except Exception:
+                return None
 
-        try:
-            e_obj  = datetime.strptime(e_raw, "%Y-%m-%d %H:%M:%S")
+        s_obj = _parse_date(s_raw)
+        e_obj = _parse_date(e_raw)
+
+        s_date = s_obj.strftime("%d/%m/%y") if s_obj else "N/A"
+        if e_obj:
             e_date = e_obj.strftime("%d/%m/%y")
             left   = (e_obj - datetime.now()).days
             exp    = f"{left}d" if left >= 0 else "Exp"
-        except Exception:
+        else:
             e_date = "N/A"
             exp    = "?"
 

@@ -35,8 +35,6 @@ export async function GET() {
           // Continue if bot lacks admin rights in a specific channel
         }
       }
-
-      // Mark VIP as expired in DB
       await supabase
         .from("users")
         .update({ is_vip: 0 })
