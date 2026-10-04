@@ -8,6 +8,8 @@ import {
   editMessageText,
   answerCallbackQuery,
   getFile,
+  banChatMember,
+  unbanChatMember,
 } from "@/lib/telegram/bot";
 import { verifyPayment } from "@/lib/payments/receiptVerifier";
 import { parseBankSms } from "@/lib/sms/bankParser";
@@ -297,7 +299,52 @@ export async function POST(req: NextRequest) {
     }
 
     // ─────────────────────────────────────────────────────────────
-    // 2. MESSAGES (Text, Photo, Commands)
+    // 2. CHAT MEMBER UPDATES (Channel Guard: Auto-kick expired/non-VIP)
+    // ─────────────────────────────────────────────────────────────
+    if (update.chat_member) {
+      const cm = update.chat_member;
+      const channelId = cm.chat.id;
+      const user = cm.new_chat_member?.user;
+      const userId = user?.id;
+
+      if (user && !user.is_bot && !isAdminUser(userId)) {
+        const oldStatus = cm.old_chat_member?.status;
+        const newStatus = cm.new_chat_member?.status;
+        const joined =
+          ["left", "kicked"].includes(oldStatus || "") &&
+          ["member", "restricted", "administrator"].includes(newStatus || "");
+
+        if (joined) {
+          const { data: dbUser } = await supabase
+            .from("users")
+            .select("is_vip, expiry_date")
+            .eq("user_id", userId)
+            .single();
+
+          const isVip =
+            dbUser?.is_vip === 1 &&
+            (!dbUser.expiry_date || new Date(dbUser.expiry_date).getTime() > Date.now());
+
+          if (!isVip) {
+            try {
+              await banChatMember(channelId, userId, token);
+              await unbanChatMember(channelId, userId, token);
+              await sendMessage(
+                userId,
+                `⚠️ <b>ይቅርታ፣ ንቁ የቪአይፒ አባልነት ስለሌለዎት ከቻናሉ ተወግደዋል።</b>\n\nለመቀላቀል በቦቱ /start ብለው ጥቅል ይምረጡ።`,
+                { parse_mode: "HTML", botToken: token }
+              );
+            } catch (err) {
+              console.warn("Channel guard kick error:", err);
+            }
+          }
+        }
+      }
+      return NextResponse.json({ ok: true });
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // 3. MESSAGES (Text, Photo, Commands)
     // ─────────────────────────────────────────────────────────────
     if (update.message) {
       const msg = update.message;

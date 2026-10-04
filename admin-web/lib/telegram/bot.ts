@@ -492,3 +492,27 @@ export async function getChatMember(
 export function isMemberStatus(status?: string): boolean {
   return ["creator", "administrator", "member", "restricted"].includes(status || "");
 }
+
+export async function banChatMember(
+  chatId: number | string,
+  userId: number | string,
+  botToken?: string
+) {
+  return callTelegramApi(
+    "banChatMember",
+    { chat_id: chatId, user_id: userId },
+    botToken
+  );
+}
+
+export async function unbanChatMember(
+  chatId: number | string,
+  userId: number | string,
+  botToken?: string
+) {
+  return callTelegramApi(
+    "unbanChatMember",
+    { chat_id: chatId, user_id: userId, only_if_banned: true },
+    botToken
+  );
+}
