@@ -22,7 +22,9 @@ export async function GET(request: NextRequest) {
 
     const normalizedUrl = appUrl.endsWith("/") ? appUrl : `${appUrl}/`;
     const webhookUrl = `${normalizedUrl}api/telegram/webhook`;
-    const secret = process.env.TELEGRAM_WEBHOOK_SECRET || "wonde_vip_secret";
+    const secret =
+      process.env.TELEGRAM_WEBHOOK_SECRET ||
+      "wonde_vip_secret_9f18cae9d34fb907cd86c1221f1305bd";
 
     const webhookResult = await setWebhook(webhookUrl, secret, BOT_CONFIG.botToken);
     const commandsResult = await setMyCommands(COMMANDS, BOT_CONFIG.botToken);
