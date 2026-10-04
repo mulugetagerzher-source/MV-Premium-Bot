@@ -148,10 +148,51 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ ok: true });
       }
 
-      // Action: Select Package -> Show Payment Methods
+      // Action: Select Package -> Check Phone -> Show Payment Methods
       if (data.startsWith("pkg_")) {
         const pkgKey = data.replace("pkg_", "");
         const pkg = BOT_CONFIG.packages[pkgKey] || BOT_CONFIG.packages["1month"];
+
+        // Check if user already has phone registered in Supabase
+        const { data: userRow } = await supabase
+          .from("users")
+          .select("phone")
+          .eq("user_id", userId)
+          .single();
+
+        const hasPhone = Boolean(
+          userRow?.phone &&
+          userRow.phone.trim() &&
+          userRow.phone !== "None" &&
+          userRow.phone !== "Not shared"
+        );
+
+        // Record chosen package for user
+        await supabase.from("users").upsert({
+          user_id: userId,
+          package: pkgKey,
+        }, { onConflict: "user_id" });
+
+        if (!hasPhone) {
+          // Ask user to share their phone number
+          await sendMessage(
+            chatId,
+            `📱 <b>ስልክ ቁጥርዎን ያጋሩ</b>\n\n` +
+            `ክፍያዎን በራስ-ሰር ለማረጋገጥ እና የቪአይፒ ምዝገባዎን ለማጠናቀቅ እባክዎ ከታች ያለውን <b>"📲 ስልክ ቁጥሬን ላክ"</b> የሚለውን በተን ይጫኑ ወይም ስልክ ቁጥርዎን በፅሁፍ ይላኩ (ምሳሌ፡ 0911223344)።`,
+            {
+              parse_mode: "HTML",
+              reply_markup: {
+                keyboard: [
+                  [{ text: "📲 ስልክ ቁጥሬን ላክ", request_contact: true }],
+                ],
+                resize_keyboard: true,
+                one_time_keyboard: true,
+              },
+              botToken: token,
+            }
+          );
+          return NextResponse.json({ ok: true });
+        }
 
         await editMessageText(
           chatId,
@@ -320,6 +361,104 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ ok: true });
       }
 
+      // 1. Check if user shared phone via Telegram Contact
+      if (msg.contact) {
+        let phone = msg.contact.phone_number;
+        if (phone && !phone.startsWith("+") && !phone.startsWith("0")) {
+          phone = "+" + phone;
+        }
+
+        const { data: userRow } = await supabase
+          .from("users")
+          .update({ phone })
+          .eq("user_id", userId)
+          .select()
+          .single();
+
+        const selectedPkg = userRow?.package || "1month";
+
+        await sendMessage(
+          chatId,
+          `✅ <b>ስልክዎ ተመዝግቧል:</b> <code>${phone}</code>\n\nአሁን የክፍያ ዘዴዎን ይምረጡ:`,
+          {
+            parse_mode: "HTML",
+            reply_markup: { remove_keyboard: true },
+            botToken: token,
+          }
+        );
+
+        await sendMessage(
+          chatId,
+          `${e("wallet")} የክፍያ ዘዴ ይምረጡ:`,
+          {
+            parse_mode: "HTML",
+            reply_markup: {
+              inline_keyboard: [
+                [{ text: "Telebirr", callback_data: `pay_tele_${selectedPkg}`, icon_custom_emoji_id: e_id("telebirr") }],
+                [{ text: "CBE Birr", callback_data: `pay_cbe_${selectedPkg}`, icon_custom_emoji_id: e_id("cbe") }],
+                [{ text: "Bank of Abyssinia", callback_data: `pay_boa_${selectedPkg}`, icon_custom_emoji_id: e_id("abyssinia") }],
+                [{ text: "Awash Bank", callback_data: `pay_awash_${selectedPkg}` }],
+                [
+                  { text: "Back", callback_data: "make_deposit", icon_custom_emoji_id: e_id("back") },
+                  { text: "Cancel Order", callback_data: "cancel_order", icon_custom_emoji_id: e_id("cancel") },
+                ],
+              ],
+            },
+            botToken: token,
+          }
+        );
+        return NextResponse.json({ ok: true });
+      }
+
+      // 2. Check if user typed a phone number (e.g. 0911223344, 0711223344, +251911223344)
+      const cleanPhoneCandidate = text.replace(/[\s\-]/g, "");
+      if (/^(?:\+?251|0)?[79]\d{8}$/.test(cleanPhoneCandidate)) {
+        let formattedPhone = cleanPhoneCandidate;
+        if (formattedPhone.startsWith("251")) formattedPhone = "+" + formattedPhone;
+        else if (formattedPhone.startsWith("9") || formattedPhone.startsWith("7")) formattedPhone = "0" + formattedPhone;
+
+        const { data: userRow } = await supabase
+          .from("users")
+          .update({ phone: formattedPhone })
+          .eq("user_id", userId)
+          .select()
+          .single();
+
+        const selectedPkg = userRow?.package || "1month";
+
+        await sendMessage(
+          chatId,
+          `✅ <b>ስልክዎ ተመዝግቧል:</b> <code>${formattedPhone}</code>\n\nአሁን የክፍያ ዘዴዎን ይምረጡ:`,
+          {
+            parse_mode: "HTML",
+            reply_markup: { remove_keyboard: true },
+            botToken: token,
+          }
+        );
+
+        await sendMessage(
+          chatId,
+          `${e("wallet")} የክፍያ ዘዴ ይምረጡ:`,
+          {
+            parse_mode: "HTML",
+            reply_markup: {
+              inline_keyboard: [
+                [{ text: "Telebirr", callback_data: `pay_tele_${selectedPkg}`, icon_custom_emoji_id: e_id("telebirr") }],
+                [{ text: "CBE Birr", callback_data: `pay_cbe_${selectedPkg}`, icon_custom_emoji_id: e_id("cbe") }],
+                [{ text: "Bank of Abyssinia", callback_data: `pay_boa_${selectedPkg}`, icon_custom_emoji_id: e_id("abyssinia") }],
+                [{ text: "Awash Bank", callback_data: `pay_awash_${selectedPkg}` }],
+                [
+                  { text: "Back", callback_data: "make_deposit", icon_custom_emoji_id: e_id("back") },
+                  { text: "Cancel Order", callback_data: "cancel_order", icon_custom_emoji_id: e_id("cancel") },
+                ],
+              ],
+            },
+            botToken: token,
+          }
+        );
+        return NextResponse.json({ ok: true });
+      }
+
       // Receipt Verification Trigger: (Photo OR Text matching Transaction ID / SMS / Link)
       let verifyInput: Buffer | string | null = null;
 
@@ -395,11 +534,23 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ ok: true });
           }
 
-          // 2. Save payment to Supabase
+          // 2. Fetch user's registered phone to prevent "None"
+          const { data: userProfile } = await supabase
+            .from("users")
+            .select("phone")
+            .eq("user_id", userId)
+            .single();
+
+          const finalPhone =
+            (userProfile?.phone && userProfile.phone !== "None" && userProfile.phone.trim())
+              ? userProfile.phone
+              : (verification.senderPhone || "None");
+
+          // Save payment to Supabase
           await supabase.from("payments").insert({
             user_id: userId,
             payer_name: payerName,
-            phone: verification.senderPhone || "None",
+            phone: finalPhone,
             transaction_id: tid,
             amount: amount,
             bank: bankName,
@@ -426,7 +577,7 @@ export async function POST(req: NextRequest) {
             `የክፍያ ዘዴ: ${methodIcon} <b>${bankName}</b>\n` +
             `${e("msg_tele")} ቴሌ ስም: <b>${fullName}</b>\n` +
             `${e("msg_payer")} ከፋይ ስም: <b>${payerName}</b>\n` +
-            `${e("msg_phone")} ስልክ: <b>${verification.senderPhone || "None"}</b>\n` +
+            `${e("msg_phone")} ስልክ: <b>${finalPhone}</b>\n` +
             `${e("msg_amount")} መጠን: <b>${amount} ብር</b>\n` +
             `${e("msg_tid")} TID: <code>${tid}</code>\n` +
             `${e("msg_userid")} User ID: <code>${userId}</code>\n\n` +
