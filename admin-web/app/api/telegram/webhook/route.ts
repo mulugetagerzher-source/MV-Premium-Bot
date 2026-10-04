@@ -27,9 +27,23 @@ function getPackageForAmount(amount: number) {
   return BOT_CONFIG.packages["1month"];
 }
 
+const processedUpdates = new Set<number>();
+
 export async function POST(req: NextRequest) {
   try {
     const update = await req.json();
+
+    // Prevent Telegram retry loops from delivering the same message multiple times
+    if (update.update_id) {
+      if (processedUpdates.has(update.update_id)) {
+        return NextResponse.json({ ok: true, note: "duplicate acknowledged" });
+      }
+      processedUpdates.add(update.update_id);
+      if (processedUpdates.size > 2000) {
+        processedUpdates.clear();
+      }
+    }
+
     const supabase = createSupabaseAdmin();
     const token = BOT_CONFIG.botToken;
 
