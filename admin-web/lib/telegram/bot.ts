@@ -301,7 +301,7 @@ export async function setWebhook(url: string, secret: string, botToken?: string)
     {
       url,
       secret_token: secret,
-      allowed_updates: ["message", "callback_query", "channel_post", "inline_query", "chat_member", "chat_join_request"],
+      allowed_updates: ["message", "callback_query", "channel_post", "inline_query", "chat_member"],
     },
     botToken
   );
