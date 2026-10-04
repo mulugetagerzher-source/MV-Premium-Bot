@@ -318,17 +318,29 @@ export default function AdminDashboardPage() {
                         ? u.phone
                         : (p.phone && p.phone !== 'None' ? p.phone : '-');
                       const sDate = formatDate(u?.start_date || p.created_at);
-                      const eDate = formatDate(u?.expiry_date);
+
+                      // Calculate target subscription end date
+                      let targetExpiryDate: Date | null = null;
+                      if (u?.expiry_date) {
+                        const d = new Date(u.expiry_date);
+                        if (!isNaN(d.getTime())) targetExpiryDate = d;
+                      } else if (p.status === 'approved' && p.created_at) {
+                        const start = new Date(p.created_at);
+                        if (!isNaN(start.getTime())) {
+                          targetExpiryDate = new Date(start.getTime() + 30 * 24 * 60 * 60 * 1000);
+                        }
+                      }
+
+                      const eDate = targetExpiryDate ? formatDate(targetExpiryDate.toISOString()) : '-';
 
                       let expBadge: React.ReactNode = '-';
-                      if (u?.expiry_date) {
-                        const expTime = new Date(u.expiry_date).getTime();
-                        const nowTime = Date.now();
-                        const daysLeft = Math.ceil((expTime - nowTime) / (1000 * 60 * 60 * 24));
+                      if (targetExpiryDate) {
+                        const diffMs = targetExpiryDate.getTime() - Date.now();
+                        const daysLeft = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
                         if (daysLeft > 0) {
                           expBadge = (
                             <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 whitespace-nowrap">
-                              {daysLeft}d left
+                              {daysLeft}d
                             </span>
                           );
                         } else {
@@ -341,7 +353,7 @@ export default function AdminDashboardPage() {
                       } else if (p.status === 'approved') {
                         expBadge = (
                           <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 whitespace-nowrap">
-                            Active
+                            30d
                           </span>
                         );
                       } else if (p.status === 'rejected') {
@@ -475,7 +487,7 @@ export default function AdminDashboardPage() {
                         if (daysLeft > 0) {
                           expBadge = (
                             <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 whitespace-nowrap">
-                              {daysLeft}d left
+                              {daysLeft}d
                             </span>
                           );
                         } else {

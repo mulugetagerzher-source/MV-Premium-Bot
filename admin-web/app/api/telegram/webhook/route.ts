@@ -503,7 +503,8 @@ export async function POST(req: NextRequest) {
                 txnReference: parsedSms.txnReference,
                 amount: parsedSms.amount,
                 currency: "ETB",
-                senderName: parsedSms.senderName || fullName,
+                senderName: parsedSms.senderName || parsedSms.account || undefined,
+                senderAccount: parsedSms.account,
                 status: "SUCCESS",
               };
             }
@@ -515,7 +516,12 @@ export async function POST(req: NextRequest) {
           const tid = verification.txnReference;
           const amount = verification.amount || 300;
           const pkg = getPackageForAmount(amount);
-          const payerName = verification.senderName || fullName;
+          
+          // Payer name strictly from bank receipt / sender account (never from Telegram name)
+          const payerName =
+            verification.senderName?.trim() ||
+            verification.senderAccount?.trim() ||
+            (verification.senderPhone ? `Account (${verification.senderPhone})` : "Bank Sender");
           const bankName = verification.bank.toUpperCase();
 
           // 1. Check duplicate payment in Supabase
@@ -576,22 +582,41 @@ export async function POST(req: NextRequest) {
             `${e("green_check")} <b>ክፍያዎ ተረጋግጧል!</b>\n\n` +
             `የክፍያ ዘዴ: ${methodIcon} <b>${bankName}</b>\n` +
             `${e("msg_tele")} ቴሌ ስም: <b>${fullName}</b>\n` +
-            `${e("msg_payer")} ከፋይ ስም: <b>${payerName}</b>\n` +
+            `${e("msg_payer")} ከፋይ ስም (Bank): <b>${payerName}</b>\n` +
             `${e("msg_phone")} ስልክ: <b>${finalPhone}</b>\n` +
             `${e("msg_amount")} መጠን: <b>${amount} ብር</b>\n` +
             `${e("msg_tid")} TID: <code>${tid}</code>\n` +
             `${e("msg_userid")} User ID: <code>${userId}</code>\n\n` +
-            `${e("star")} ጥያቄዎ ተቀባይነት አግኝቷል! የቪአይፒ ቻናሉን መቀላቀል ይችላሉ።`;
+            `🎉 <b>እንኳን ደስ አለዎት! የVIP አባልነትዎ ተጀምሯል።</b>\n\n` +
+            `🔗 <b>የቪአይፒ ቻናሎችን ለመቀላቀል ሊንኩን ይጫኑ:</b>\n` +
+            `👉 <b><a href="${BOT_CONFIG.vipLink}">${BOT_CONFIG.vipLink}</a></b>`;
 
           await sendMessage(chatId, successMsg, {
             parse_mode: "HTML",
             reply_markup: {
               inline_keyboard: [
-                [{ text: "VIP ቻናሉን ለመቀላቀል", url: BOT_CONFIG.vipLink, icon_custom_emoji_id: e_id("vip_door") }],
+                [{ text: "🌟 VIP ቻናሉን ለመቀላቀል (Join VIP)", url: BOT_CONFIG.vipLink, icon_custom_emoji_id: e_id("vip_door") }],
               ],
             },
             botToken: token,
           });
+
+          // Also send direct VIP link message so the user never misses it
+          await sendMessage(
+            chatId,
+            `🚪 <b>የእርስዎ የቪአይፒ ቻናል መግቢያ ሊንክ:</b>\n\n` +
+            `👉 <b>${BOT_CONFIG.vipLink}</b>\n\n` +
+            `<i>(ሊንኩን በመጫን Join / Add Channels የሚለውን ይምረጡ)</i>`,
+            {
+              parse_mode: "HTML",
+              reply_markup: {
+                inline_keyboard: [
+                  [{ text: "✨ አሁኑኑ ቻናሉን ይቀላቀሉ (Join VIP)", url: BOT_CONFIG.vipLink }],
+                ],
+              },
+              botToken: token,
+            }
+          );
 
           // 5. Notify Admins
           for (const adminId of BOT_CONFIG.adminIds) {
