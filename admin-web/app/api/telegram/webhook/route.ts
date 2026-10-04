@@ -11,6 +11,7 @@ import {
 } from "@/lib/telegram/bot";
 import { verifyPayment } from "@/lib/payments/receiptVerifier";
 import { parseBankSms } from "@/lib/sms/bankParser";
+import { e, e_id } from "@/lib/telegram/emoji";
 
 // Helper to calculate expiry date based on package or amount
 function calculateExpiry(days: number): string {
@@ -69,12 +70,12 @@ export async function POST(req: NextRequest) {
         await editMessageText(
           chatId,
           messageId,
-          `ሰላም ${fullName} 👋\n\nወደ <b>Wonde VIP</b> ቦት እንኳን ደህና መጡ።\n\nሁሉንም የቪአይፒ ቻናሎች ለመቀላቀል ከታች ያለውን በተን ይጫኑ።`,
+          `ሰላም <b>${fullName}</b> ${e("wave")}\n\nወደ <b>Wonde ${e("smile")}</b> ቦት እንኳን ደህና መጡ።\n\nሁሉንም የቪአይፒ ቻናሎች ለመቀላቀል ከታች ያለውን በተን ይጫኑ።`,
           {
             parse_mode: "HTML",
             reply_markup: {
               inline_keyboard: [
-                [{ text: "🚪 VIP ቻናሉን ለመቀላቀል", callback_data: "buy_vip" }],
+                [{ text: "VIP ቻናሉን ለመቀላቀል", callback_data: "buy_vip", icon_custom_emoji_id: e_id("vip_door") }],
               ],
             },
             botToken: token,
@@ -88,14 +89,14 @@ export async function POST(req: NextRequest) {
         await editMessageText(
           chatId,
           messageId,
-          `👇 የሚፈልጉትን ይምረጡ:`,
+          `${e("down_arrow")} የሚፈልጉትን ይምረጡ:`,
           {
             parse_mode: "HTML",
             reply_markup: {
               inline_keyboard: [
-                [{ text: "💳 Deposit (መክፈል)", callback_data: "make_deposit" }],
-                [{ text: "ℹ️ ስለ VIP ቻናሎቻችን ለማወቅ", callback_data: "vip_info" }],
-                [{ text: "🔴 Cancel Order", callback_data: "cancel_order" }],
+                [{ text: "Deposit", callback_data: "make_deposit", icon_custom_emoji_id: e_id("wallet") }],
+                [{ text: "ስለ VIP ቻናሎቻችን ለማወቅ", callback_data: "vip_info", icon_custom_emoji_id: e_id("smile") }],
+                [{ text: "Cancel Order", callback_data: "cancel_order", icon_custom_emoji_id: e_id("cancel") }],
               ],
             },
             botToken: token,
@@ -109,13 +110,13 @@ export async function POST(req: NextRequest) {
         await editMessageText(
           chatId,
           messageId,
-          `🌟 <b>Wonde VIP Channels Info</b>\n\n• ዕለታዊ የቪአይፒ መረጃዎችና አዳዲስ ጥቆማዎች\n• 49+ ፕሪሚየም ቻናሎችን በአንድ ሊንክ ያገኛሉ\n• ፈጣንና አስተማማኝ አውቶማቲክ አሰራር\n\nእርዳታ ከፈለጉ ➡️ ${BOT_CONFIG.supportContact}`,
+          `${e("star")} <b>Wonde VIP Channels Info</b>\n\n• ዕለታዊ የቪአይፒ መረጃዎችና አዳዲስ ጥቆማዎች\n• 49+ ፕሪሚየም ቻናሎችን በአንድ ሊንክ ያገኛሉ\n• ፈጣንና አስተማማኝ አውቶማቲክ አሰራር\n\nእርዳታ ከፈለጉ ➡️ ${BOT_CONFIG.supportContact}`,
           {
             parse_mode: "HTML",
             reply_markup: {
               inline_keyboard: [
-                [{ text: "💳 አሁን ክፈል (Deposit)", callback_data: "make_deposit" }],
-                [{ text: "◀️ Back", callback_data: "buy_vip" }],
+                [{ text: "Deposit", callback_data: "make_deposit", icon_custom_emoji_id: e_id("wallet") }],
+                [{ text: "Back", callback_data: "buy_vip", icon_custom_emoji_id: e_id("back") }],
               ],
             },
             botToken: token,
@@ -126,18 +127,18 @@ export async function POST(req: NextRequest) {
 
       // Action: make_deposit -> Show packages
       if (data === "make_deposit") {
-        const pkgButtons = Object.values(BOT_CONFIG.packages).map((pkg) => [
-          { text: `✔️ ${pkg.label}`, callback_data: `pkg_${pkg.key}` },
+        const pkgButtons: any[][] = Object.values(BOT_CONFIG.packages).map((pkg) => [
+          { text: pkg.label, callback_data: `pkg_${pkg.key}`, icon_custom_emoji_id: e_id("pkg_check") },
         ]);
         pkgButtons.push([
-          { text: "◀️ Back", callback_data: "buy_vip" },
-          { text: "🔴 Cancel Order", callback_data: "cancel_order" },
+          { text: "Back", callback_data: "buy_vip", icon_custom_emoji_id: e_id("back") },
+          { text: "Cancel Order", callback_data: "cancel_order", icon_custom_emoji_id: e_id("cancel") },
         ]);
 
         await editMessageText(
           chatId,
           messageId,
-          `💵 ከታች ከተዘረዘሩት ጥቅሎች የሚፈልጉትን ይምረጡ:`,
+          `${e("dollar")} ከታች ከተዘረዘሩት ጥቅሎች የሚፈልጉትን ይምረጡ:`,
           {
             parse_mode: "HTML",
             reply_markup: { inline_keyboard: pkgButtons },
@@ -155,18 +156,18 @@ export async function POST(req: NextRequest) {
         await editMessageText(
           chatId,
           messageId,
-          `📦 <b>ጥቅል ተመርጧል:</b> ${pkg.label} (${pkg.price} ብር)\n\n💳 የክፍያ ዘዴ ይምረጡ:`,
+          `${e("wallet")} የክፍያ ዘዴ ይምረጡ:`,
           {
             parse_mode: "HTML",
             reply_markup: {
               inline_keyboard: [
-                [{ text: "📱 Telebirr", callback_data: `pay_tele_${pkgKey}` }],
-                [{ text: "🏦 CBE Birr", callback_data: `pay_cbe_${pkgKey}` }],
-                [{ text: "🏦 Bank of Abyssinia", callback_data: `pay_boa_${pkgKey}` }],
-                [{ text: "🏦 Awash Bank", callback_data: `pay_awash_${pkgKey}` }],
+                [{ text: "Telebirr", callback_data: `pay_tele_${pkgKey}`, icon_custom_emoji_id: e_id("telebirr") }],
+                [{ text: "CBE Birr", callback_data: `pay_cbe_${pkgKey}`, icon_custom_emoji_id: e_id("cbe") }],
+                [{ text: "Bank of Abyssinia", callback_data: `pay_boa_${pkgKey}`, icon_custom_emoji_id: e_id("abyssinia") }],
+                [{ text: "Awash Bank", callback_data: `pay_awash_${pkgKey}` }],
                 [
-                  { text: "◀️ Back", callback_data: "make_deposit" },
-                  { text: "🔴 Cancel", callback_data: "cancel_order" },
+                  { text: "Back", callback_data: "make_deposit", icon_custom_emoji_id: e_id("back") },
+                  { text: "Cancel Order", callback_data: "cancel_order", icon_custom_emoji_id: e_id("cancel") },
                 ],
               ],
             },
@@ -183,38 +184,41 @@ export async function POST(req: NextRequest) {
         const pkgKey = parts[2] || "1month";
         const pkg = BOT_CONFIG.packages[pkgKey] || BOT_CONFIG.packages["1month"];
 
-        let title = "📱 <b>Telebirr</b>";
+        let title = `${e("telebirr")} <b>Telebirr</b>`;
         let acct = `ቁጥር: <code>${BOT_CONFIG.telebirrNumber}</code>`;
-        let tip = `ከከፈሉ በኋላ የደረሰኝ ስክሪንሾት ወይም TID (ምሳሌ: <code>CD68C1BD7V</code>) ለቦቱ ይላኩ።`;
+        let tip = `${e("paid_check")} ከከፈሉ በኋላ TID ቁጥሩን ወይም screenshot ለቦቱ ይላኩ\nምሳሌ TID: <code>CD68C1BD7V</code>`;
 
         if (method === "cbe") {
-          title = "🏦 <b>CBE Birr</b>";
+          title = `${e("cbe")} <b>CBE Birr</b>`;
           acct = `Account: <code>${BOT_CONFIG.cbeAccount}</code>`;
-          tip = `ከከፈሉ በኋላ የደረሰኝ ሊንክ ወይም ስክሪንሾት ይላኩ (ምሳሌ: <code>https://mbreciept.cbe.com.et/...</code>)`;
+          tip = `${e("paid_check")} ከከፈሉ በኋላ CBE app ደረሰኝ ሊንክ ወይም screenshot ይላኩ\nምሳሌ: <code>https://mbreciept.cbe.com.et/v2-AbCdXyz</code>`;
         } else if (method === "boa") {
-          title = "🏦 <b>Bank of Abyssinia</b>";
+          title = `${e("abyssinia")} <b>Bank of Abyssinia</b>`;
           acct = `Account: <code>${BOT_CONFIG.abyssiniaAccount}</code>`;
-          tip = `ከከፈሉ በኋላ የደረሰኝ ሊንክ ወይም ስክሪንሾት ይላኩ (ምሳሌ: <code>https://cs.bankofabyssinia.com/slip/?trx=...</code>)`;
+          tip = `${e("paid_check")} ከከፈሉ በኋላ ደረሰኝ ሊንክ ወይም screenshot ይላኩ\nምሳሌ: <code>https://cs.bankofabyssinia.com/slip/?trx=...</code>`;
         } else if (method === "awash") {
-          title = "🏦 <b>Awash Bank</b>";
+          title = `🏦 <b>Awash Bank</b>`;
           acct = `Account: <code>${BOT_CONFIG.awashAccount}</code>`;
-          tip = `ከከፈሉ በኋላ የደረሰኝ ሊንክ ወይም ስክሪንሾት ይላኩ።`;
+          tip = `${e("paid_check")} ከከፈሉ በኋላ ደረሰኝ ሊንክ ወይም screenshot ይላኩ።`;
         }
 
         const msg =
           `${title}\n\n` +
           `${acct}\n` +
           `ስም ➡️ <b>${BOT_CONFIG.accountName}</b>\n\n` +
-          `💵 ሊከፍሉ ያለው: <b>${pkg.price} ብር</b>\n\n` +
-          `✅ ${tip}\n\n` +
-          `🔔 ለተጨማሪ መረጃ ➡️ ${BOT_CONFIG.supportContact}`;
+          `${e("dollar")} ሊከፍሉ ያለው: <b>${pkg.price} ብር</b>\n\n` +
+          `${tip}\n\n` +
+          `${e("bell")} ለተጨማሪ መረጃ ➡️ ${BOT_CONFIG.supportContact} ያናግሩን።`;
 
         await editMessageText(chatId, messageId, msg, {
           parse_mode: "HTML",
           reply_markup: {
             inline_keyboard: [
-              [{ text: "✅ ከፍያለሁ (Send Receipt)", callback_data: `confirm_${method}_${pkgKey}` }],
-              [{ text: "◀️ Back", callback_data: `pkg_${pkgKey}` }],
+              [{ text: "I have paid ✅", callback_data: `confirm_${method}_${pkgKey}`, icon_custom_emoji_id: e_id("paid_check") }],
+              [
+                { text: "Back", callback_data: `pkg_${pkgKey}`, icon_custom_emoji_id: e_id("back") },
+                { text: "Cancel Order", callback_data: "cancel_order", icon_custom_emoji_id: e_id("cancel") },
+              ],
             ],
           },
           botToken: token,
@@ -224,6 +228,10 @@ export async function POST(req: NextRequest) {
 
       // Action: Confirm Prompt
       if (data.startsWith("confirm_")) {
+        const parts = data.split("_");
+        const method = parts[1];
+        const pkgKey = parts[2] || "1month";
+
         await editMessageText(
           chatId,
           messageId,
@@ -232,7 +240,10 @@ export async function POST(req: NextRequest) {
             parse_mode: "HTML",
             reply_markup: {
               inline_keyboard: [
-                [{ text: "🔴 Cancel", callback_data: "cancel_order" }],
+                [
+                  { text: "Back", callback_data: `pay_${method}_${pkgKey}`, icon_custom_emoji_id: e_id("back") },
+                  { text: "Cancel Order", callback_data: "cancel_order", icon_custom_emoji_id: e_id("cancel") },
+                ],
               ],
             },
             botToken: token,
@@ -293,12 +304,14 @@ export async function POST(req: NextRequest) {
         // Regular User /start
         await sendMessage(
           chatId,
-          `ሰላም <b>${fullName}</b> 👋\n\nወደ <b>Wonde VIP</b> ቦት እንኳን ደህና መጡ።\n\nሁሉንም የቪአይፒ ቻናሎች ለመቀላቀል ከታች ያለውን በተን ይጫኑ።`,
+          `ሰላም <b>${fullName}</b> ${e("wave")}\n\n` +
+          `ወደ <b>Wonde ${e("smile")}</b> ቦት እንኳን ደህና መጡ።\n\n` +
+          `ሁሉንም የቪአይፒ ቻናሎች ለመቀላቀል ከታች ያለውን በተን ይጫኑ።`,
           {
             parse_mode: "HTML",
             reply_markup: {
               inline_keyboard: [
-                [{ text: "🚪 VIP ቻናሉን ለመቀላቀል", callback_data: "buy_vip" }],
+                [{ text: "VIP ቻናሉን ለመቀላቀል", callback_data: "buy_vip", icon_custom_emoji_id: e_id("vip_door") }],
               ],
             },
             botToken: token,
@@ -328,10 +341,10 @@ export async function POST(req: NextRequest) {
       }
 
       if (verifyInput) {
-        // Processing message
+        // Processing message with premium emojis
         const procMsg = await sendMessage(
           chatId,
-          `⏳ ደረሰኙን በማረጋገጥ ላይ ነኝ... እባክዎ ትንሽ ይጠብቁ።`,
+          `${e("processing")} ደረሰኙን በማረጋገጥ ላይ ነኝ ${e("black_circle")}`,
           { parse_mode: "HTML", botToken: token }
         );
 
@@ -376,7 +389,7 @@ export async function POST(req: NextRequest) {
           if (existingPayment) {
             await sendMessage(
               chatId,
-              `❌ <b>ትራንዛክሽን ቁጥሩ አስቀድሞ ጥቅም ላይ ውሏል!</b>\nእባክዎ ትክክለኛ አዲስ ቁጥር ይላኩ።`,
+              `${e("error")} <b>ትራንዛክሽን ቁጥሩ አስቀድሞ ጥቅም ላይ ውሏል!</b>\nእባክዎ ትክክለኛ አዲስ ቁጥር ይላኩ።`,
               { parse_mode: "HTML", botToken: token }
             );
             return NextResponse.json({ ok: true });
@@ -404,21 +417,26 @@ export async function POST(req: NextRequest) {
             expiry_date: expiryDate,
           });
 
-          // 4. Send Success and VIP Link
+          // 4. Send Success and VIP Link with authentic premium emojis
+          const methodIcon =
+            bankName === "CBE" ? e("cbe") : bankName === "BOA" || bankName === "ABYSSINIA" ? e("abyssinia") : e("telebirr");
+
           const successMsg =
-            `✅ <b>ክፍያዎ ተረጋግጧል!</b>\n\n` +
-            `🏦 የክፍያ ዘዴ: <b>${bankName}</b>\n` +
-            `👤 ከፋይ ስም: <b>${payerName}</b>\n` +
-            `💵 መጠን: <b>${amount} ብር</b>\n` +
-            `🆔 TID: <code>${tid}</code>\n` +
-            `📅 ቆይታ: <b>${pkg.label}</b>\n\n` +
-            `🌟 ጥያቄዎ ተቀባይነት አግኝቷል! ከታች ያለውን ሊንክ በመጫን የቪአይፒ ቻናሎችን ይቀላቀሉ።`;
+            `${e("green_check")} <b>ክፍያዎ ተረጋግጧል!</b>\n\n` +
+            `የክፍያ ዘዴ: ${methodIcon} <b>${bankName}</b>\n` +
+            `${e("msg_tele")} ቴሌ ስም: <b>${fullName}</b>\n` +
+            `${e("msg_payer")} ከፋይ ስም: <b>${payerName}</b>\n` +
+            `${e("msg_phone")} ስልክ: <b>${verification.senderPhone || "None"}</b>\n` +
+            `${e("msg_amount")} መጠን: <b>${amount} ብር</b>\n` +
+            `${e("msg_tid")} TID: <code>${tid}</code>\n` +
+            `${e("msg_userid")} User ID: <code>${userId}</code>\n\n` +
+            `${e("star")} ጥያቄዎ ተቀባይነት አግኝቷል! የቪአይፒ ቻናሉን መቀላቀል ይችላሉ።`;
 
           await sendMessage(chatId, successMsg, {
             parse_mode: "HTML",
             reply_markup: {
               inline_keyboard: [
-                [{ text: "🚪 VIP ቻናሉን ለመቀላቀል", url: BOT_CONFIG.vipLink }],
+                [{ text: "VIP ቻናሉን ለመቀላቀል", url: BOT_CONFIG.vipLink, icon_custom_emoji_id: e_id("vip_door") }],
               ],
             },
             botToken: token,
@@ -429,7 +447,7 @@ export async function POST(req: NextRequest) {
             try {
               await sendMessage(
                 adminId,
-                `🔔 <b>አዲስ ክፍያ ተረጋግጧል!</b>\n\n` +
+                `${e("bell")} <b>አዲስ ክፍያ ተረጋግጧል!</b>\n\n` +
                 `👤 User: <b>${fullName}</b> (@${username})\n` +
                 `🆔 User ID: <code>${userId}</code>\n` +
                 `🏦 Bank: <b>${bankName}</b>\n` +
@@ -447,13 +465,13 @@ export async function POST(req: NextRequest) {
           // Verification failed
           await sendMessage(
             chatId,
-            `❌ <b>ደረሰኙ አልተረጋገጠም</b>\n\n${verification.error || "የተላከው መረጃ ትክክለኛ የክፍያ ደረሰኝ አይደለም።"}\n\n` +
-            `🔔 ችግር ካጋጠመዎት ➡️ ${BOT_CONFIG.supportContact} ያናግሩን።`,
+            `${e("error")} <b>ደረሰኙ አልተረጋገጠም</b>\n\n${verification.error || "የተላከው መረጃ ትክክለኛ የክፍያ ደረሰኝ አይደለም።"}\n\n` +
+            `${e("bell")} ችግር ካጋጠመዎት ➡️ ${BOT_CONFIG.supportContact} ያናግሩን።`,
             {
               parse_mode: "HTML",
               reply_markup: {
                 inline_keyboard: [
-                  [{ text: "◀️ እንደገና ሞክር", callback_data: "buy_vip" }],
+                  [{ text: "እንደገና ሞክር", callback_data: "buy_vip", icon_custom_emoji_id: e_id("back") }],
                 ],
               },
               botToken: token,
