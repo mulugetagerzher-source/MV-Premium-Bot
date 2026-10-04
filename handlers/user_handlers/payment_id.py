@@ -16,7 +16,8 @@ logger = logging.getLogger(__name__)
 
 
 async def _verify_and_finalize(message: Message, state: FSMContext,
-                                tid: str, verify_input: str):
+                                tid: str, verify_input: str,
+                                ocr_payer_name: str | None = None):
     user_id   = message.from_user.id
     tg_name   = message.from_user.full_name
     user_data = await state.get_data()
@@ -56,6 +57,11 @@ async def _verify_and_finalize(message: Message, state: FSMContext,
                 tid = auth_ref
         else:
             is_valid, check_msg, actual_amount, p_name, p_phone = result
+
+        # ደረሰኙ ፎቶ/OCR ላይ የተነበበውን የከፋይ ሙሉ ስም ቀዳሚ አድርግ
+        if ocr_payer_name:
+            if not p_name or str(p_name).strip() in ("", "None") or len(ocr_payer_name) > len(str(p_name)):
+                p_name = ocr_payer_name
     except Exception as ex:
         logger.error(f"Verification Error: {ex}")
         is_valid, check_msg, actual_amount, p_name, p_phone = (
@@ -196,10 +202,11 @@ def _build_verify_input(method: str, reference: str) -> str:
 # ── Text ─────────────────────────────────────────────────────────────────────
 @payment_id_router.message(PaymentState.waiting_for_tid, F.text)
 async def process_transaction_id(message: Message, state: FSMContext):
-    tid    = message.text.strip()
-    method = (await state.get_data()).get("payment_method", "telebirr")
-    verify = tid if method in ("cbe", "boa", "awash") else tid.upper()
-    await _verify_and_finalize(message, state, tid, verify)
+    tid      = message.text.strip()
+    method   = (await state.get_data()).get("payment_method", "telebirr")
+    verify   = tid if method in ("cbe", "boa", "awash") else tid.upper()
+    ocr_name = ocr_utils.extract_payer_name_from_text(tid)
+    await _verify_and_finalize(message, state, tid, verify, ocr_payer_name=ocr_name)
 
 
 # ── Photo / Screenshot ────────────────────────────────────────────────────────
@@ -207,13 +214,14 @@ async def process_transaction_id(message: Message, state: FSMContext):
 async def process_receipt_photo(message: Message, state: FSMContext):
     method = (await state.get_data()).get("payment_method", "telebirr")
     proc   = await message.answer(
-        f"{e('processing')} ደረሰኙን ፎቶ ላይ ቁጥር በመፈለግ ላይ {e('black_circle')}",
+        f"{e('processing')} ደረሰኙን ፎቶ ላይ ቁጥር እና ከፋይ ስም በመፈለግ ላይ {e('black_circle')}",
         parse_mode="HTML",
     )
     photo     = message.photo[-1]
     file      = await message.bot.get_file(photo.file_id)
     img_bytes = (await message.bot.download_file(file.file_path)).read()
     reference = ocr_utils.extract_reference_from_image_bytes(img_bytes, method)
+    ocr_name  = ocr_utils.extract_payer_name_from_image_bytes(img_bytes)
     await proc.delete()
 
     if not reference:
@@ -225,7 +233,8 @@ async def process_receipt_photo(message: Message, state: FSMContext):
         )
         return
     await _verify_and_finalize(message, state, reference,
-                                _build_verify_input(method, reference))
+                                _build_verify_input(method, reference),
+                                ocr_payer_name=ocr_name)
 
 
 # ── Document / PDF ────────────────────────────────────────────────────────────
@@ -233,7 +242,7 @@ async def process_receipt_photo(message: Message, state: FSMContext):
 async def process_receipt_document(message: Message, state: FSMContext):
     method = (await state.get_data()).get("payment_method", "telebirr")
     proc   = await message.answer(
-        f"{e('processing')} ፋይሉን ላይ ቁጥር በመፈለግ ላይ {e('black_circle')}",
+        f"{e('processing')} ፋይሉን ላይ ቁጥር እና ከፋይ ስም በመፈለግ ላይ {e('black_circle')}",
         parse_mode="HTML",
     )
     doc        = message.document
@@ -242,10 +251,13 @@ async def process_receipt_document(message: Message, state: FSMContext):
     mime       = (doc.mime_type or "").lower()
     name       = (doc.file_name or "").lower()
 
+    ocr_name = None
     if "pdf" in mime or name.endswith(".pdf"):
         reference = ocr_utils.extract_reference_from_pdf_bytes(file_bytes, method)
+        ocr_name  = ocr_utils.extract_payer_name_from_pdf_bytes(file_bytes)
     elif mime.startswith("image/") or name.endswith((".png", ".jpg", ".jpeg", ".webp")):
         reference = ocr_utils.extract_reference_from_image_bytes(file_bytes, method)
+        ocr_name  = ocr_utils.extract_payer_name_from_image_bytes(file_bytes)
     else:
         await proc.delete()
         await message.answer(
@@ -263,4 +275,5 @@ async def process_receipt_document(message: Message, state: FSMContext):
         )
         return
     await _verify_and_finalize(message, state, reference,
-                                _build_verify_input(method, reference))
+                                _build_verify_input(method, reference),
+                                ocr_payer_name=ocr_name)

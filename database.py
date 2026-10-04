@@ -26,12 +26,30 @@ if not USE_SUPABASE:
     import aiosqlite
 
 
+# In-memory VIP cache for sub-millisecond guard checks across simultaneous channel joins
+VIP_CACHE: set = set()
+
+
 # ── 1. ዳታቤዝ ማስጀመር ────────────────────────────────────────────────────────
 async def init_db():
-    """Initializes tables in local SQLite if not using Supabase."""
+    """Initializes tables and preloads active VIP users into memory cache."""
     if USE_SUPABASE:
-        # Schema in Supabase is managed via SQL editor (see supabase_schema.sql)
         logger.info("Using Supabase cloud database.")
+        def _sync_preload():
+            try:
+                res = supabase_client.table("users").select("user_id").eq("is_vip", 1).execute()
+                for row in (res.data or []):
+                    if row.get("user_id"):
+                        VIP_CACHE.add(int(row["user_id"]))
+                # Also load users with approved payments
+                p_res = supabase_client.table("payments").select("user_id").eq("status", "approved").execute()
+                for row in (p_res.data or []):
+                    if row.get("user_id"):
+                        VIP_CACHE.add(int(row["user_id"]))
+                logger.info(f"Preloaded {len(VIP_CACHE)} VIP users into memory cache.")
+            except Exception as e:
+                logger.warning(f"Error preloading VIP cache from Supabase: {e}")
+        await asyncio.to_thread(_sync_preload)
         return
 
     async with aiosqlite.connect(DB_PATH) as db:
@@ -60,6 +78,14 @@ async def init_db():
             )
         ''')
         await db.commit()
+        async with db.execute("SELECT user_id FROM users WHERE is_vip = 1") as cur:
+            for row in await cur.fetchall():
+                VIP_CACHE.add(int(row[0]))
+        async with db.execute("SELECT user_id FROM payments WHERE status = 'approved'") as cur:
+            for row in await cur.fetchall():
+                if row[0]:
+                    VIP_CACHE.add(int(row[0]))
+        logger.info(f"Preloaded {len(VIP_CACHE)} VIP users into SQLite memory cache.")
 
 
 # ── 2. ተጠቃሚ መመዝገብ ወይም ማዘመን ──────────────────────────────────────────
@@ -121,25 +147,31 @@ async def update_user_phone(user_id: int, phone: str):
 
 # ── 5. ተጠቃሚ VIP መሆኑን ማረጋገጥ ───────────────────────────────────────────
 async def is_user_vip(user_id: int) -> bool:
+    uid = int(user_id)
+    # Instant in-memory check (prevents race condition when joining 49 channels simultaneously)
+    if uid in VIP_CACHE:
+        return True
+
     if USE_SUPABASE:
         def _sync_vip():
             try:
-                res = supabase_client.table("users").select("is_vip").eq("user_id", user_id).limit(1).execute()
+                res = supabase_client.table("users").select("is_vip").eq("user_id", uid).limit(1).execute()
                 if res.data and len(res.data) > 0:
                     val = res.data[0].get("is_vip")
-                    if bool(val == 1 or val is True):
+                    if bool(val == 1 or val is True or val == "1"):
+                        VIP_CACHE.add(uid)
                         return True
             except Exception as ex:
                 logger.warning(f"Supabase is_vip check error: {ex}")
 
             # Fallback check on payments: if user has an approved payment, they are a paid VIP!
             try:
-                pay_res = supabase_client.table("payments").select("id").eq("user_id", user_id).eq("status", "approved").limit(1).execute()
+                pay_res = supabase_client.table("payments").select("id").eq("user_id", uid).eq("status", "approved").limit(1).execute()
                 if pay_res.data and len(pay_res.data) > 0:
-                    # Also ensure users table has is_vip set
+                    VIP_CACHE.add(uid)
                     try:
                         supabase_client.table("users").upsert({
-                            "user_id": user_id,
+                            "user_id": uid,
                             "is_vip": 1,
                             "updated_at": datetime.utcnow().isoformat()
                         }, on_conflict="user_id").execute()
@@ -152,14 +184,16 @@ async def is_user_vip(user_id: int) -> bool:
         return await asyncio.to_thread(_sync_vip)
 
     async with aiosqlite.connect(DB_PATH) as db:
-        async with db.execute("SELECT is_vip FROM users WHERE user_id=?", (user_id,)) as cur:
+        async with db.execute("SELECT is_vip FROM users WHERE user_id=?", (uid,)) as cur:
             row = await cur.fetchone()
             if row and row[0] == 1:
+                VIP_CACHE.add(uid)
                 return True
-        async with db.execute("SELECT id FROM payments WHERE user_id=? AND status='approved' LIMIT 1", (user_id,)) as cur:
+        async with db.execute("SELECT id FROM payments WHERE user_id=? AND status='approved' LIMIT 1", (uid,)) as cur:
             p_row = await cur.fetchone()
             if p_row:
-                await db.execute("UPDATE users SET is_vip=1 WHERE user_id=?", (user_id,))
+                VIP_CACHE.add(uid)
+                await db.execute("UPDATE users SET is_vip=1 WHERE user_id=?", (uid,))
                 await db.commit()
                 return True
         return False
@@ -167,6 +201,10 @@ async def is_user_vip(user_id: int) -> bool:
 
 # ── 6. ተጠቃሚን VIP ማድረግ ──────────────────────────────────────────────────
 async def activate_vip(user_id: int, duration_type: str):
+    uid = int(user_id)
+    # Add to memory cache immediately so guard never kicks them
+    VIP_CACHE.add(uid)
+
     durations = {
         "5min": timedelta(minutes=5),
         "1month": timedelta(days=30),
@@ -176,13 +214,14 @@ async def activate_vip(user_id: int, duration_type: str):
         "1year": timedelta(days=365)
     }
     delta = durations.get(duration_type, timedelta(days=30))
-    start_now = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-    expiry_now = (datetime.now() + delta).strftime('%Y-%m-%d %H:%M:%S')
+    now_utc = datetime.utcnow()
+    start_now = now_utc.isoformat()
+    expiry_now = (now_utc + delta).isoformat()
 
     if USE_SUPABASE:
         def _sync_activate():
             return supabase_client.table("users").upsert({
-                "user_id": user_id,
+                "user_id": uid,
                 "is_vip": 1,
                 "start_date": start_now,
                 "expiry_date": expiry_now,
@@ -197,23 +236,26 @@ async def activate_vip(user_id: int, duration_type: str):
             VALUES (?, 1, ?, ?)
             ON CONFLICT(user_id) DO UPDATE SET
             is_vip=1, start_date=excluded.start_date, expiry_date=excluded.expiry_date
-        ''', (user_id, start_now, expiry_now))
+        ''', (uid, start_now, expiry_now))
         await db.commit()
 
 
 # ── 7. ተጠቃሚውን ከ VIP ማውጣት (Ban/Deactivate) ──────────────────────────────
 async def deactivate_user(user_id: int):
+    uid = int(user_id)
+    VIP_CACHE.discard(uid)
+
     if USE_SUPABASE:
         def _sync_deact():
             return supabase_client.table("users").update({
                 "is_vip": 0,
                 "updated_at": datetime.utcnow().isoformat()
-            }).eq("user_id", user_id).execute()
+            }).eq("user_id", uid).execute()
         await asyncio.to_thread(_sync_deact)
         return
 
     async with aiosqlite.connect(DB_PATH) as db:
-        await db.execute("UPDATE users SET is_vip=0 WHERE user_id=?", (user_id,))
+        await db.execute("UPDATE users SET is_vip=0 WHERE user_id=?", (uid,))
         await db.commit()
 
 
@@ -233,20 +275,25 @@ async def get_all_vip_users() -> List[Dict[str, Any]]:
 
 # ── 9. ጊዜያቸው ያለቀባቸው ተጠቃሚዎች ─────────────────────────────────────────
 async def get_expired_users() -> List[Dict[str, Any]]:
-    now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    now_iso = datetime.utcnow().isoformat()
 
     if USE_SUPABASE:
         def _sync_expired():
-            res = supabase_client.table("users").select("*").eq("is_vip", 1).lte("expiry_date", now_str).execute()
+            res = supabase_client.table("users").select("*")\
+                .eq("is_vip", 1)\
+                .not_.is_("expiry_date", "null")\
+                .lte("expiry_date", now_iso).execute()
             return res.data or []
         return await asyncio.to_thread(_sync_expired)
 
+    now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     async with aiosqlite.connect(DB_PATH) as db:
         db.row_factory = aiosqlite.Row
         async with db.execute(
-            "SELECT * FROM users WHERE is_vip=1 AND expiry_date<=?", (now_str,)
+            "SELECT * FROM users WHERE is_vip=1 AND expiry_date IS NOT NULL AND expiry_date<=?", (now_str,)
         ) as cur:
             return [dict(r) for r in await cur.fetchall()]
+
 
 
 # ── 10. ጊዜያቸው ሊያልቅ የቀረባቸው ተጠቃሚዎች ──────────────────────────────────

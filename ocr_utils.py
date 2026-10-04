@@ -37,6 +37,80 @@ def extract_text_from_pdf_bytes(pdf_bytes: bytes) -> str:
 
 
 # ==========================================================================
+# ከ OCR/PDF ጽሁፍ ውስጥ የከፋይ (Sender / Payer) ሙሉ ስም ማውጫ
+# ==========================================================================
+_STOP_WORDS_RE = re.compile(
+    r"\s*(?:\b(?:Payer\s*telebirr|telebirr|Account|Receiver|Credited|Transferred|Amount|Birr|ETB|Date|Reason|Reference|Ref|TID|Payment|Txn|Status|Branch|VAT)\b|የከፋይ|የገንዘብ|አካውንት|ተቀባይ|መጠን).*",
+    re.IGNORECASE
+)
+
+_INVALID_NAME_TOKENS = {
+    "telebirr", "cbe", "boa", "awash", "success", "completed", "failed",
+    "receipt", "payment", "transaction", "reference", "amount", "approved"
+}
+
+_OCR_PAYER_PATTERNS = [
+    # Telebirr / Bilingual: Payer Name / የከፋይ ስም
+    re.compile(
+        r"(?:የከፋይ\s*ስም[/\s]*Payer\s*Name|Payer\s*Name|የከፋይ\s*ስም)\s*[:\-]?\s*([A-Za-z\u1200-\u137F\s.']{3,60})",
+        re.IGNORECASE,
+    ),
+    # BOA / Awash / Dashen: Sender Name / Source Account Name
+    re.compile(
+        r"(?:Sender\s*Name|Source\s*Account\s*Name|Source\s*Account\s*Owner|Payer\s*Account\s*Name)\s*[:\-]?\s*([A-Za-z\u1200-\u137F\s.']{3,60})",
+        re.IGNORECASE,
+    ),
+    # CBE: Debit Account Owner / Payer Information
+    re.compile(
+        r"(?:Debit\s*Account\s*Owner|Debit\s*Customer\s*Name|Debited\s*Account\s*Name|Sender)\s*[:\-]?\s*([A-Za-z\u1200-\u137F\s.']{3,60})",
+        re.IGNORECASE,
+    ),
+    # Generic Payer:
+    re.compile(
+        r"(?:^|\n)\s*Payer\s*[:\-]?\s*([A-Za-z\u1200-\u137F\s.']{3,60})",
+        re.IGNORECASE,
+    ),
+]
+
+
+def extract_payer_name_from_text(text: str) -> str | None:
+    """ከ OCR / PDF / SMS ጽሁፍ ውስጥ የከፋይ (Sender/Payer) ሙሉ ስም ፈልጎ ያገኛል።"""
+    if not text:
+        return None
+
+    for pattern in _OCR_PAYER_PATTERNS:
+        match = pattern.search(text)
+        if match:
+            raw_val = match.group(1)
+            # Take only the first line if multiline
+            first_line = raw_val.split("\n")[0]
+            # Strip stop words if regex grabbed beyond the name
+            clean_name = _STOP_WORDS_RE.sub("", first_line)
+            clean_name = re.sub(r"^[:\-\s/]+|[:\-\s/]+$", "", clean_name).strip()
+
+            # Validate name length and quality
+            if len(clean_name) >= 3 and not re.fullmatch(r"[\d\W_]+", clean_name):
+                # Ensure it's not a common system status word
+                words = [w.lower() for w in clean_name.split()]
+                if not all(w in _INVALID_NAME_TOKENS for w in words):
+                    return clean_name
+
+    return None
+
+
+def extract_payer_name_from_image_bytes(image_bytes: bytes) -> str | None:
+    """ከፎቶ/ስክሪንሾት OCR አንብቦ የከፋዩን ሙሉ ስም ያወጣል"""
+    text = extract_text_from_image_bytes(image_bytes)
+    return extract_payer_name_from_text(text)
+
+
+def extract_payer_name_from_pdf_bytes(pdf_bytes: bytes) -> str | None:
+    """ከ PDF ደረሰኝ ጽሁፍ አንብቦ የከፋዩን ሙሉ ስም ያወጣል"""
+    text = extract_text_from_pdf_bytes(pdf_bytes)
+    return extract_payer_name_from_text(text)
+
+
+# ==========================================================================
 # ከ OCR/PDF ጽሁፍ ውስጥ የትራንዛክሽን ማጣቀሻ (reference) ቁጥር/ሙሉ ሊንክ ማውጫ
 # ==========================================================================
 _TELE_CONTEXT_RE = re.compile(
