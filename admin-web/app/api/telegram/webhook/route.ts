@@ -609,13 +609,6 @@ export async function POST(req: NextRequest) {
           const amount = verification.amount || 300;
           const pkg = getPackageForAmount(amount);
           
-          // Payer name strictly from bank receipt / sender account (never from Telegram name)
-          const payerName =
-            verification.senderName?.trim() ||
-            verification.senderAccount?.trim() ||
-            (verification.senderPhone ? `Account (${verification.senderPhone})` : "Bank Sender");
-          const bankName = verification.bank.toUpperCase();
-
           // 1. Check duplicate payment in Supabase
           const { data: existingPayment } = await supabase
             .from("payments")
@@ -632,17 +625,26 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ ok: true });
           }
 
-          // 2. Fetch user's registered phone to prevent "None"
+          // 2. Fetch user's registered profile (phone & name)
           const { data: userProfile } = await supabase
             .from("users")
-            .select("phone")
+            .select("phone, full_name")
             .eq("user_id", userId)
-            .single();
+            .maybeSingle();
 
           const finalPhone =
             (userProfile?.phone && userProfile.phone !== "None" && userProfile.phone.trim())
               ? userProfile.phone
               : (verification.senderPhone || "None");
+
+          // Payer name strictly from bank receipt / sender account.
+          // If the bank portal does not expose the name, fallback to real customer name.
+          const payerName =
+            verification.senderName?.trim() ||
+            verification.senderAccount?.trim() ||
+            (verification.senderPhone ? `Account (${verification.senderPhone})` : (userProfile?.full_name || fullName || "N/A"));
+
+          const bankName = verification.bank.toUpperCase();
 
           // Save payment to Supabase
           await supabase.from("payments").insert({

@@ -2,6 +2,13 @@ import jsQR from "jsqr";
 import Jimp from "jimp";
 import * as cheerio from "cheerio";
 import https from "https";
+import dns from "dns";
+
+try {
+  dns.setDefaultResultOrder("ipv4first");
+} catch {
+  // Ignore in environments where not supported
+}
 
 export type SupportedBank = "telebirr" | "boa" | "cbe" | "dashen" | "awash" | "unknown";
 
@@ -250,8 +257,8 @@ export async function verifyTelebirrReceipt(txnNoOrUrl: string, rawQrPayload?: s
   const url = `https://transactioninfo.ethiotelecom.et/receipt/${txnReference}`;
 
   try {
-    // Fast 4.5 second attempt to avoid Telegram webhook timeout loops
-    const fetchRes = await fetchWithFallbacks(url, 4500, 1);
+    // 7.5 second attempt with IPv4-first DNS ensures reliable fetching from Ethio Telecom
+    const fetchRes = await fetchWithFallbacks(url, 7500, 1);
 
     if (!fetchRes.ok) {
       // Fallback 1: Authentic Telebirr QR with verified CRC-16
@@ -315,18 +322,20 @@ export async function verifyTelebirrReceipt(txnNoOrUrl: string, rawQrPayload?: s
 
     $("table tr").each((_, row) => {
       const rowText = $(row).text();
-      const cells = $(row).find("td");
+      const cells = $(row).find("td, th");
+      const col0 = cells.length > 0 ? cleanText($(cells[0]).text()) : "";
+      const col1 = cells.length > 1 ? cleanText($(cells[1]).text()) : "";
 
-      if (rowText.includes("Payer Name")) {
-        payerName = cleanText($(cells[1]).text());
-      } else if (rowText.includes("Payer telebirr no")) {
-        payerPhone = cleanText($(cells[1]).text());
-      } else if (rowText.includes("Credited Party name")) {
-        recipientName = cleanText($(cells[1]).text());
-      } else if (rowText.includes("Credited party account no")) {
-        recipientAccount = cleanText($(cells[1]).text());
-      } else if (rowText.includes("transaction status")) {
-        statusText = cleanText($(cells[1]).text());
+      if (/Payer\s*Name|የከፋይ\s*ስም/i.test(col0) || (rowText.includes("Payer Name") && col1)) {
+        payerName = col1;
+      } else if (/Payer\s*telebirr|የከፋይ\s*ቴሌብር/i.test(col0) || (rowText.includes("Payer telebirr no") && col1)) {
+        payerPhone = col1;
+      } else if (/Credited\s*Party\s*name|የገንዘብ\s*ተቀባይ\s*ስም/i.test(col0) || (rowText.includes("Credited Party name") && col1)) {
+        recipientName = col1;
+      } else if (/Credited\s*party\s*account|የገንዘብ\s*ተቀባይ\s*(?:ቴሌብር|አካውንት)/i.test(col0) || (rowText.includes("Credited party account no") && col1)) {
+        recipientAccount = col1;
+      } else if (/transaction\s*status|የክፍያው\s*ሁኔታ/i.test(col0) || (rowText.includes("transaction status") && col1)) {
+        statusText = col1;
       }
     });
 
