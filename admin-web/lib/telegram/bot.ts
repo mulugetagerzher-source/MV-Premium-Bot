@@ -140,7 +140,7 @@ async function callTelegramApi(
 export async function sendMessage(
   chatId: number | string,
   text: string,
-  options?: { reply_markup?: object; parse_mode?: string; botToken?: string }
+  options?: { reply_markup?: object; parse_mode?: string; botToken?: string; protect_content?: boolean }
 ) {
   return callTelegramApi(
     "sendMessage",
@@ -149,6 +149,7 @@ export async function sendMessage(
       text,
       parse_mode: options?.parse_mode ?? "HTML",
       reply_markup: options?.reply_markup,
+      protect_content: options?.protect_content,
     },
     options?.botToken
   );

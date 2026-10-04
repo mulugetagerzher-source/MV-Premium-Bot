@@ -408,6 +408,51 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ ok: true });
       }
 
+      // User tapped the bottom persistent menu button: "VIP ቻናሉን ለመቀላቀል"
+      if (text.includes("VIP ቻናሉን ለመቀላቀል")) {
+        const { data: dbUser } = await supabase
+          .from("users")
+          .select("is_vip, expiry_date")
+          .eq("user_id", userId)
+          .single();
+
+        const isVipActive =
+          dbUser?.is_vip === 1 &&
+          (!dbUser.expiry_date || new Date(dbUser.expiry_date).getTime() > Date.now());
+
+        if (isVipActive) {
+          await sendMessage(
+            chatId,
+            `🚪 <b>VIP ቻናሉን ለመቀላቀል ከታች ያለውን ቁልፍ ይጫኑ:</b>`,
+            {
+              parse_mode: "HTML",
+              protect_content: true,
+              reply_markup: {
+                inline_keyboard: [
+                  [{ text: "VIP ቻናሉን ለመቀላቀል", url: BOT_CONFIG.vipLink, icon_custom_emoji_id: e_id("vip_door") }],
+                ],
+              },
+              botToken: token,
+            }
+          );
+        } else {
+          await sendMessage(
+            chatId,
+            `⚠️ <b>ይቅርታ! VIP ቻናሉን ለመቀላቀል ንቁ የቪአይፒ ክፍያ ያስፈልጋል።</b>\n\nከታች ከተዘረዘሩት ጥቅሎች የሚፈልጉትን ይምረጡ:`,
+            {
+              parse_mode: "HTML",
+              reply_markup: {
+                inline_keyboard: [
+                  [{ text: "VIP ቻናሉን ለመቀላቀል", callback_data: "buy_vip", icon_custom_emoji_id: e_id("vip_door") }],
+                ],
+              },
+              botToken: token,
+            }
+          );
+        }
+        return NextResponse.json({ ok: true });
+      }
+
       // 1. Check if user shared phone via Telegram Contact
       if (msg.contact) {
         let phone = msg.contact.phone_number;
@@ -635,30 +680,31 @@ export async function POST(req: NextRequest) {
             `${e("msg_tid")} TID: <code>${tid}</code>\n` +
             `${e("msg_userid")} User ID: <code>${userId}</code>\n\n` +
             `🎉 <b>እንኳን ደስ አለዎት! የVIP አባልነትዎ ተጀምሯል።</b>\n\n` +
-            `🔗 <b>የቪአይፒ ቻናሎችን ለመቀላቀል ሊንኩን ይጫኑ:</b>\n` +
-            `👉 <b><a href="${BOT_CONFIG.vipLink}">${BOT_CONFIG.vipLink}</a></b>`;
+            `ከታች ያለውን <b>"VIP ቻናሉን ለመቀላቀል"</b> የሚለውን ይጫኑ:`;
 
+          // 1. Send success message with the persistent bottom keyboard (Menu button below text input, exactly as shown in photo 2)
           await sendMessage(chatId, successMsg, {
             parse_mode: "HTML",
+            protect_content: true,
             reply_markup: {
-              inline_keyboard: [
-                [{ text: "🌟 VIP ቻናሉን ለመቀላቀል (Join VIP)", url: BOT_CONFIG.vipLink, icon_custom_emoji_id: e_id("vip_door") }],
+              keyboard: [
+                [{ text: "VIP ቻናሉን ለመቀላቀል" }],
               ],
+              resize_keyboard: true,
             },
             botToken: token,
           });
 
-          // Also send direct VIP link message so the user never misses it
+          // 2. Send the VIP channel join button (Inline button only, NO raw URL link in text)
           await sendMessage(
             chatId,
-            `🚪 <b>የእርስዎ የቪአይፒ ቻናል መግቢያ ሊንክ:</b>\n\n` +
-            `👉 <b>${BOT_CONFIG.vipLink}</b>\n\n` +
-            `<i>(ሊንኩን በመጫን Join / Add Channels የሚለውን ይምረጡ)</i>`,
+            `🚪 <b>VIP ቻናሉን ለመቀላቀል ከታች ያለውን ቁልፍ ይጫኑ:</b>`,
             {
               parse_mode: "HTML",
+              protect_content: true,
               reply_markup: {
                 inline_keyboard: [
-                  [{ text: "✨ አሁኑኑ ቻናሉን ይቀላቀሉ (Join VIP)", url: BOT_CONFIG.vipLink }],
+                  [{ text: "VIP ቻናሉን ለመቀላቀል", url: BOT_CONFIG.vipLink, icon_custom_emoji_id: e_id("vip_door") }],
                 ],
               },
               botToken: token,
