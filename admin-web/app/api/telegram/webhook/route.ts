@@ -682,34 +682,20 @@ export async function POST(req: NextRequest) {
             `🎉 <b>እንኳን ደስ አለዎት! የVIP አባልነትዎ ተጀምሯል።</b>\n\n` +
             `ከታች ያለውን <b>"VIP ቻናሉን ለመቀላቀል"</b> የሚለውን ይጫኑ:`;
 
-          // 1. Send success message with the persistent bottom keyboard (Menu button below text input, exactly as shown in photo 2)
+          const joinUrl = `${process.env.NEXT_PUBLIC_APP_URL || "https://wondevip.vercel.app"}/join`;
+
+          // 1. Send success message with the persistent bottom keyboard (Menu button below text input, opens channel sheet)
           await sendMessage(chatId, successMsg, {
             parse_mode: "HTML",
             protect_content: true,
             reply_markup: {
               keyboard: [
-                [{ text: "VIP ቻናሉን ለመቀላቀል" }],
+                [{ text: "VIP ቻናሉን ለመቀላቀል", web_app: { url: joinUrl } }],
               ],
               resize_keyboard: true,
             },
             botToken: token,
           });
-
-          // 2. Send the VIP channel join button (Inline button only, NO raw URL link in text)
-          await sendMessage(
-            chatId,
-            `🚪 <b>VIP ቻናሉን ለመቀላቀል ከታች ያለውን ቁልፍ ይጫኑ:</b>`,
-            {
-              parse_mode: "HTML",
-              protect_content: true,
-              reply_markup: {
-                inline_keyboard: [
-                  [{ text: "VIP ቻናሉን ለመቀላቀል", url: BOT_CONFIG.vipLink, icon_custom_emoji_id: e_id("vip_door") }],
-                ],
-              },
-              botToken: token,
-            }
-          );
 
           // 5. Notify Admins
           for (const adminId of BOT_CONFIG.adminIds) {
