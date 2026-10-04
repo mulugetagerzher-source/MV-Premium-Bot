@@ -147,17 +147,40 @@ export default function AdminDashboardPage() {
               <span className="px-2.5 py-0.5 text-xs font-semibold rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
                 Supabase Realtime
               </span>
+              <span className="px-2.5 py-0.5 text-xs font-semibold rounded-full bg-sky-500/10 text-sky-400 border border-sky-500/20">
+                Vercel Serverless Bot
+              </span>
             </div>
             <p className="text-sm text-slate-400 mt-1">
               Live Telegram Bot Management, Payment Verifications & Channel Memberships
             </p>
           </div>
-          <button
-            onClick={fetchData}
-            className="self-start md:self-auto px-4 py-2 text-xs font-medium rounded-lg bg-slate-900 hover:bg-slate-800 transition border border-slate-800 text-slate-200"
-          >
-            ↻ Refresh Data
-          </button>
+          <div className="flex items-center gap-2 self-start md:self-auto">
+            <button
+              onClick={async () => {
+                try {
+                  const res = await fetch('/api/telegram/setup');
+                  const json = await res.json();
+                  if (json.ok) {
+                    alert(`✅ Telegram Webhook Connected!\n\nBot: @${json.bot}\nWebhook: ${json.webhookUrl}`);
+                  } else {
+                    alert(`⚠️ Webhook setup issue: ${json.error || JSON.stringify(json)}`);
+                  }
+                } catch (e: any) {
+                  alert(`Error connecting webhook: ${e.message}`);
+                }
+              }}
+              className="px-3.5 py-2 text-xs font-medium rounded-lg bg-sky-600/20 hover:bg-sky-600/30 transition border border-sky-500/30 text-sky-300"
+            >
+              ⚡ Sync Telegram Webhook
+            </button>
+            <button
+              onClick={fetchData}
+              className="px-4 py-2 text-xs font-medium rounded-lg bg-slate-900 hover:bg-slate-800 transition border border-slate-800 text-slate-200"
+            >
+              ↻ Refresh
+            </button>
+          </div>
         </div>
 
         {/* Stats Grid */}

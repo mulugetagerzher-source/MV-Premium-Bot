@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
+
+export const dynamic = "force-dynamic";
 import { setWebhook, setMyCommands } from "@/lib/telegram/bot";
 import { BOT_CONFIG } from "@/lib/config";
 

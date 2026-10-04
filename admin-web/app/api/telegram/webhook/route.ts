@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
+
+export const dynamic = "force-dynamic";
 import { createSupabaseAdmin } from "@/lib/supabase";
 import { BOT_CONFIG, isAdminUser } from "@/lib/config";
 import {

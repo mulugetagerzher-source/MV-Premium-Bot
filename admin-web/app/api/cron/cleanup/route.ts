@@ -1,4 +1,6 @@
 import { NextResponse } from "next/server";
+
+export const dynamic = "force-dynamic";
 import { createSupabaseAdmin } from "@/lib/supabase";
 import { BOT_CONFIG } from "@/lib/config";
 import { sendMessage } from "@/lib/telegram/bot";
