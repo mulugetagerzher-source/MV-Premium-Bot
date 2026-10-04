@@ -301,7 +301,7 @@ export async function setWebhook(url: string, secret: string, botToken?: string)
     {
       url,
       secret_token: secret,
-      allowed_updates: ["message", "callback_query", "channel_post", "inline_query", "chat_member"],
+      allowed_updates: ["message", "callback_query", "channel_post", "inline_query", "chat_member", "chat_join_request"],
     },
     botToken
   );
@@ -514,6 +514,30 @@ export async function unbanChatMember(
   return callTelegramApi(
     "unbanChatMember",
     { chat_id: chatId, user_id: userId, only_if_banned: true },
+    botToken
+  );
+}
+
+export async function approveChatJoinRequest(
+  chatId: number | string,
+  userId: number | string,
+  botToken?: string
+) {
+  return callTelegramApi(
+    "approveChatJoinRequest",
+    { chat_id: chatId, user_id: userId },
+    botToken
+  );
+}
+
+export async function declineChatJoinRequest(
+  chatId: number | string,
+  userId: number | string,
+  botToken?: string
+) {
+  return callTelegramApi(
+    "declineChatJoinRequest",
+    { chat_id: chatId, user_id: userId },
     botToken
   );
 }

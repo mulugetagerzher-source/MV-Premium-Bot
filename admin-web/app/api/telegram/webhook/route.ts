@@ -10,6 +10,8 @@ import {
   getFile,
   banChatMember,
   unbanChatMember,
+  approveChatJoinRequest,
+  declineChatJoinRequest,
 } from "@/lib/telegram/bot";
 import { verifyPayment } from "@/lib/payments/receiptVerifier";
 import { parseBankSms } from "@/lib/sms/bankParser";
@@ -337,6 +339,52 @@ export async function POST(req: NextRequest) {
             } catch (err) {
               console.warn("Channel guard kick error:", err);
             }
+          }
+        }
+      }
+      return NextResponse.json({ ok: true });
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // 2b. CHAT JOIN REQUESTS (When Admin Approval is required)
+    // ─────────────────────────────────────────────────────────────
+    if (update.chat_join_request) {
+      const cjr = update.chat_join_request;
+      const channelId = cjr.chat.id;
+      const userId = cjr.from.id;
+
+      if (!isAdminUser(userId)) {
+        const { data: dbUser } = await supabase
+          .from("users")
+          .select("is_vip, expiry_date")
+          .eq("user_id", userId)
+          .maybeSingle();
+
+        const isVip =
+          dbUser?.is_vip === 1 &&
+          (!dbUser.expiry_date || new Date(dbUser.expiry_date).getTime() > Date.now());
+
+        if (isVip) {
+          try {
+            await approveChatJoinRequest(channelId, userId, token);
+            await sendMessage(
+              userId,
+              `✅ <b>የVIP ቻናል መዳረሻ ጥያቄዎ ተቀባይነት አግኝቷል! እንኳን ደህና መጡ።</b>`,
+              { parse_mode: "HTML", botToken: token }
+            );
+          } catch (err) {
+            console.warn("Approve join request error:", err);
+          }
+        } else {
+          try {
+            await declineChatJoinRequest(channelId, userId, token);
+            await sendMessage(
+              userId,
+              `⚠️ <b>ይቅርታ፣ ንቁ የቪአይፒ አባልነት ስለሌለዎት ጥያቄዎ ውድቅ ተደርጓል።</b>\n\nለመቀላቀል በቦቱ /start ብለው ክፍያ ይፈጽሙ።`,
+              { parse_mode: "HTML", botToken: token }
+            );
+          } catch (err) {
+            console.warn("Decline join request error:", err);
           }
         }
       }
