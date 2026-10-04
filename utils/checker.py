@@ -12,11 +12,7 @@ async def start_expiry_checker(bot):
         try:
             for user in await get_expired_users():
                 uid = user["user_id"]
-                for chat_id in config.CHANNELS:
-                    try:
-                        await bot.ban_chat_member(chat_id=chat_id, user_id=uid)
-                    except Exception:
-                        pass
+                # Channel banning disabled as requested
                 await deactivate_user(uid)
                 try:
                     await bot.send_message(

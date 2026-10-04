@@ -315,29 +315,8 @@ export async function POST(req: NextRequest) {
           ["member", "restricted", "administrator"].includes(newStatus || "");
 
         if (joined) {
-          const { data: dbUser } = await supabase
-            .from("users")
-            .select("is_vip, expiry_date")
-            .eq("user_id", userId)
-            .single();
-
-          const isVip =
-            dbUser?.is_vip === 1 &&
-            (!dbUser.expiry_date || new Date(dbUser.expiry_date).getTime() > Date.now());
-
-          if (!isVip) {
-            try {
-              await banChatMember(channelId, userId, token);
-              await unbanChatMember(channelId, userId, token);
-              await sendMessage(
-                userId,
-                `⚠️ <b>ይቅርታ፣ ንቁ የቪአይፒ አባልነት ስለሌለዎት ከቻናሉ ተወግደዋል።</b>\n\nለመቀላቀል በቦቱ /start ብለው ጥቅል ይምረጡ።`,
-                { parse_mode: "HTML", botToken: token }
-              );
-            } catch (err) {
-              console.warn("Channel guard kick error:", err);
-            }
-          }
+          // Auto-kick disabled as requested by user
+          console.log(`User ${userId} joined channel ${channelId} (auto-kick disabled).`);
         }
       }
       return NextResponse.json({ ok: true });

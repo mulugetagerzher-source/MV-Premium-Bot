@@ -26,15 +26,7 @@ export async function GET() {
     const deactivations: number[] = [];
 
     for (const u of expiredUsers || []) {
-      // Kick user from all 49 VIP channels
-      for (const channelId of BOT_CONFIG.channels) {
-        try {
-          await banChatMember(channelId, u.user_id, BOT_CONFIG.botToken);
-          await unbanChatMember(channelId, u.user_id, BOT_CONFIG.botToken); // ban + unban removes/kicks member
-        } catch {
-          // Continue if bot lacks admin rights in a specific channel
-        }
-      }
+      // Channel kick disabled as requested by user
       await supabase
         .from("users")
         .update({ is_vip: 0 })

@@ -56,23 +56,6 @@ async def guard_new_member(event: ChatMemberUpdated):
         logger.error(f"Guard DB error: {ex}")
         return
 
-    # ── VIP አይደለም → Kick ─────────────────────────────────────────────────
-    try:
-        await event.bot.ban_chat_member(chat_id=chat_id, user_id=user_id)
-        await event.bot.unban_chat_member(chat_id=chat_id, user_id=user_id)
-        # (ban ከዚያ unban = kick — ሊቀላቀሉ ይችላሉ ግን ሊንኩ ካላቸው ብቻ)
-        logger.info(f"Kicked non-VIP user {user_id} from {chat_id}")
-    except Exception as ex:
-        logger.error(f"Kick error user={user_id} chat={chat_id}: {ex}")
-        return
-
-    # ── ለተጠቃሚው DM ──────────────────────────────────────────────────────────
-    try:
-        await event.bot.send_message(
-            user_id,
-            f"{e('error')} <b>ይቅርታ! VIP ቻናሉን ለመቀላቀል ክፍያ ያስፈልጋል።</b>\n\n"
-            f"{e('arrow_right')} ክፍያ ለመፈጸም /start ብለው ይጀምሩ።",
-            parse_mode="HTML",
-        )
-    except Exception:
-        pass  # ቦቱን ካሰናከሉ DM አይሄድም — OK
+    # ── Kick functionality disabled as requested by user ──────────────────
+    logger.info(f"User {user_id} joined chat {chat_id} (auto-kick disabled).")
+    return
