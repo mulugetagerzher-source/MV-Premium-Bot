@@ -682,15 +682,13 @@ export async function POST(req: NextRequest) {
             `🎉 <b>እንኳን ደስ አለዎት! የVIP አባልነትዎ ተጀምሯል።</b>\n\n` +
             `ከታች ያለውን <b>"VIP ቻናሉን ለመቀላቀል"</b> የሚለውን ይጫኑ:`;
 
-          const joinUrl = `${process.env.NEXT_PUBLIC_APP_URL || "https://wondevip.vercel.app"}/join`;
-
-          // 1. Send success message with the persistent bottom keyboard (Menu button below text input, opens channel sheet)
+          // 1. Send success message with the persistent bottom keyboard (Menu button below text input, NO mini app)
           await sendMessage(chatId, successMsg, {
             parse_mode: "HTML",
             protect_content: true,
             reply_markup: {
               keyboard: [
-                [{ text: "VIP ቻናሉን ለመቀላቀል", web_app: { url: joinUrl } }],
+                [{ text: "VIP ቻናሉን ለመቀላቀል" }],
               ],
               resize_keyboard: true,
             },
