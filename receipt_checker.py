@@ -271,11 +271,28 @@ def _normalize_whitespace(text: str) -> str:
     return re.sub(r"\s+", " ", text or "").strip()
 
 
+_AMHARIC_LABELS = {
+    "payer": ["payer", "የከፋይ", "ከፋይ"],
+    "receiver": ["receiver", "የተቀባይ", "ተቀባይ"],
+    "account": ["account", "ሒሳብ", "አካውንት"],
+    "transferred amount": ["transferred amount", "የተላለፈው ገንዘብ", "ጠቅላላ", "amount"],
+    "reference no": ["reference no", "reference", "የማጣቀሻ ቁጥር", "tid"],
+    "vat receipt no": ["vat receipt no", "vat receipt"],
+}
+
+
 def _value_after(segments: list[str], label: str, start: int = 0):
-    """ከ `label` ጋር ተመሳሳይ የሚጀምረውን የመጀመሪያ segment ተከትሎ ያለውን ዋጋ ይመልሳል።"""
-    want = label.lower()
+    """ከ `label` ጋር የሚዛመደውን segment (በእንግሊዝኛም ሆነ በአማርኛ) ፈልጎ ዋጋውን ይመልሳል።"""
+    want_keys = _AMHARIC_LABELS.get(label.lower(), [label.lower()])
     for i in range(start, len(segments)):
-        if segments[i].lower().startswith(want):
+        seg = segments[i].lower()
+        matched = any(k in seg for k in want_keys)
+        if matched:
+            # If value is in the same segment after colon (e.g. "Payer: Abebe")
+            if ":" in segments[i]:
+                parts = segments[i].split(":", 1)
+                if len(parts) == 2 and parts[1].strip():
+                    return parts[1].strip(), i
             value = segments[i + 1] if i + 1 < len(segments) else None
             return value, i
     return None, -1

@@ -143,7 +143,7 @@ async def _verify_and_finalize(message: Message, state: FSMContext,
         f"{e('green_check')} <b>ክፍያዎ ተረጋግጧል!</b>\n\n"
         f"የክፍያ ዘዴ: {method_icon} {method_name}\n"
         f"{e('msg_tele')} ቴሌ ስም: {tg_name}\n"
-        f"{e('msg_payer')} ከፋይ ስም: {p_name}\n"
+        f"{e('msg_payer')} ከፋይ ስም: {p_name if p_name else 'ያልተገኘ'}\n"
         f"{e('msg_phone')} ስልክ: {registered_phone}\n"
         f"{e('msg_amount')} መጠን: {actual_amount} ብር\n"
         f"{e('msg_tid')} TID: <code>{tid}</code>\n"

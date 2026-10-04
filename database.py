@@ -123,17 +123,46 @@ async def update_user_phone(user_id: int, phone: str):
 async def is_user_vip(user_id: int) -> bool:
     if USE_SUPABASE:
         def _sync_vip():
-            res = supabase_client.table("users").select("is_vip").eq("user_id", user_id).limit(1).execute()
-            if res.data and len(res.data) > 0:
-                val = res.data[0].get("is_vip")
-                return bool(val == 1 or val is True)
+            try:
+                res = supabase_client.table("users").select("is_vip").eq("user_id", user_id).limit(1).execute()
+                if res.data and len(res.data) > 0:
+                    val = res.data[0].get("is_vip")
+                    if bool(val == 1 or val is True):
+                        return True
+            except Exception as ex:
+                logger.warning(f"Supabase is_vip check error: {ex}")
+
+            # Fallback check on payments: if user has an approved payment, they are a paid VIP!
+            try:
+                pay_res = supabase_client.table("payments").select("id").eq("user_id", user_id).eq("status", "approved").limit(1).execute()
+                if pay_res.data and len(pay_res.data) > 0:
+                    # Also ensure users table has is_vip set
+                    try:
+                        supabase_client.table("users").upsert({
+                            "user_id": user_id,
+                            "is_vip": 1,
+                            "updated_at": datetime.utcnow().isoformat()
+                        }, on_conflict="user_id").execute()
+                    except Exception:
+                        pass
+                    return True
+            except Exception as ex:
+                logger.warning(f"Supabase payment fallback check error: {ex}")
             return False
         return await asyncio.to_thread(_sync_vip)
 
     async with aiosqlite.connect(DB_PATH) as db:
         async with db.execute("SELECT is_vip FROM users WHERE user_id=?", (user_id,)) as cur:
             row = await cur.fetchone()
-            return bool(row and row[0] == 1)
+            if row and row[0] == 1:
+                return True
+        async with db.execute("SELECT id FROM payments WHERE user_id=? AND status='approved' LIMIT 1", (user_id,)) as cur:
+            p_row = await cur.fetchone()
+            if p_row:
+                await db.execute("UPDATE users SET is_vip=1 WHERE user_id=?", (user_id,))
+                await db.commit()
+                return True
+        return False
 
 
 # ── 6. ተጠቃሚን VIP ማድረግ ──────────────────────────────────────────────────
@@ -152,20 +181,23 @@ async def activate_vip(user_id: int, duration_type: str):
 
     if USE_SUPABASE:
         def _sync_activate():
-            return supabase_client.table("users").update({
+            return supabase_client.table("users").upsert({
+                "user_id": user_id,
                 "is_vip": 1,
                 "start_date": start_now,
                 "expiry_date": expiry_now,
                 "updated_at": datetime.utcnow().isoformat()
-            }).eq("user_id", user_id).execute()
+            }, on_conflict="user_id").execute()
         await asyncio.to_thread(_sync_activate)
         return
 
     async with aiosqlite.connect(DB_PATH) as db:
-        await db.execute(
-            "UPDATE users SET is_vip=1, start_date=?, expiry_date=? WHERE user_id=?",
-            (start_now, expiry_now, user_id)
-        )
+        await db.execute('''
+            INSERT INTO users (user_id, is_vip, start_date, expiry_date)
+            VALUES (?, 1, ?, ?)
+            ON CONFLICT(user_id) DO UPDATE SET
+            is_vip=1, start_date=excluded.start_date, expiry_date=excluded.expiry_date
+        ''', (user_id, start_now, expiry_now))
         await db.commit()
 
 
