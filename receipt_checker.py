@@ -48,14 +48,27 @@ def _to_amount(value):
 
 
 def _name_matches(actual_name, expected_name) -> bool:
-    """የደረሰኙ ስም ከ config ስም ጋር (ፊደላት ብቻ፣ ትልቅ/ትንሽ ሳይለይ) ይመሳሰል እንደሆነ ያረጋግጣል።"""
+    """የደረሰኙ ስም ከ config ስም ጋር (ፊደላት ብቻ፣ ትልቅ/ትንሽ ሳይለይ) ይመሳሰል እንደሆነ ያረጋግጣል።
+    ኮማ (comma) በመጠቀም ከአንድ በላይ ስሞችን ይደግፋል።"""
     if not actual_name or not expected_name:
         return False
-    a = re.sub(r"[^a-zA-Z]", "", actual_name).lower()
-    e = re.sub(r"[^a-zA-Z]", "", expected_name).lower()
-    if not a or not e:
+    a_clean = re.sub(r"[^a-zA-Z]", "", actual_name).lower()
+    if not a_clean:
         return False
-    return e in a or a in e
+
+    expected_list = [x.strip() for x in str(expected_name).split(",") if x.strip()]
+    for exp in expected_list:
+        e_clean = re.sub(r"[^a-zA-Z]", "", exp).lower()
+        if e_clean and (e_clean in a_clean or a_clean in e_clean):
+            return True
+        # Also check word token overlap (e.g. "Wonde Gibo" in "Wonde Gibo Ado")
+        a_words = [w.lower() for w in actual_name.split() if len(w) >= 3]
+        e_words = [w.lower() for w in exp.split() if len(w) >= 3]
+        common = set(a_words).intersection(set(e_words))
+        if len(common) >= 2 or (len(e_words) == 1 and len(common) == 1):
+            return True
+
+    return False
 
 
 def _account_suffix_matches(actual_account, expected_account, digits: int = 6) -> bool:
