@@ -421,6 +421,11 @@ export async function POST(req: NextRequest) {
           (!dbUser.expiry_date || new Date(dbUser.expiry_date).getTime() > Date.now());
 
         if (isVipActive) {
+          await sendMessage(chatId, "🔐 <b>VIP መዳረሻ:</b>", {
+            parse_mode: "HTML",
+            reply_markup: { remove_keyboard: true },
+            botToken: token,
+          });
           await sendMessage(
             chatId,
             `🚪 <b>VIP ቻናሉን ለመቀላቀል ከታች ያለውን ቁልፍ ይጫኑ:</b>`,
@@ -436,6 +441,11 @@ export async function POST(req: NextRequest) {
             }
           );
         } else {
+          await sendMessage(chatId, "⚠️ <b>ክፍያ ያስፈልጋል:</b>", {
+            parse_mode: "HTML",
+            reply_markup: { remove_keyboard: true },
+            botToken: token,
+          });
           await sendMessage(
             chatId,
             `⚠️ <b>ይቅርታ! VIP ቻናሉን ለመቀላቀል ንቁ የቪአይፒ ክፍያ ያስፈልጋል።</b>\n\nከታች ከተዘረዘሩት ጥቅሎች የሚፈልጉትን ይምረጡ:`,
@@ -682,17 +692,29 @@ export async function POST(req: NextRequest) {
             `${e("msg_tid")} TID: <code>${tid}</code>\n` +
             `${e("msg_userid")} User ID: <code>${userId}</code>\n\n` +
             `🎉 <b>እንኳን ደስ አለዎት! የVIP አባልነትዎ ተጀምሯል።</b>\n\n` +
-            `ከታች ያለውን <b>"VIP ቻናሉን ለመቀላቀል"</b> የሚለውን ይጫኑ:`;
+            `ከታች ያለውን <b>"VIP ቻናሉን ለመቀላቀል"</b> የሚለውን ቁልፍ በመጫን ቻናሎቹን ይቀላቀሉ:`;
 
-          // 1. Send success message with the persistent bottom keyboard (Menu button below text input, NO mini app)
+          // 1. Remove the bottom reply keyboard
+          await sendMessage(chatId, "🔐 <b>የVIP አባልነትዎ ነቅቷል!</b>", {
+            parse_mode: "HTML",
+            reply_markup: { remove_keyboard: true },
+            botToken: token,
+          });
+
+          // 2. Send success message with the INLINE button below it
           await sendMessage(chatId, successMsg, {
             parse_mode: "HTML",
             protect_content: true,
             reply_markup: {
-              keyboard: [
-                [{ text: "VIP ቻናሉን ለመቀላቀል" }],
+              inline_keyboard: [
+                [
+                  {
+                    text: "🚪 VIP ቻናሉን ለመቀላቀል",
+                    url: BOT_CONFIG.vipLink,
+                    icon_custom_emoji_id: e_id("vip_door"),
+                  },
+                ],
               ],
-              resize_keyboard: true,
             },
             botToken: token,
           });
