@@ -247,7 +247,7 @@ async def sync_wonde_to_mule(message: types.Message):
 @forward_router.message(F.forward_from_chat)
 async def get_forwarded_channel_id(message: types.Message):
     import config
-    if message.from_user.id != config.ADMIN_ID:
+    if not config.is_admin(message.from_user.id):
         return
     chat = message.forward_from_chat
     await message.answer(

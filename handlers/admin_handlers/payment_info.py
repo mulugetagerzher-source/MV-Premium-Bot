@@ -8,7 +8,7 @@ payment_info_router = Router()
 
 @payment_info_router.message(F.text == "💰 Payment Info")
 async def show_payment_info(message: types.Message):
-    if message.from_user.id != config.ADMIN_ID:
+    if not config.is_admin(message.from_user.id):
         return
 
     payments, total = await get_all_payments_and_total()

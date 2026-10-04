@@ -9,7 +9,7 @@ date_info_router = Router()
 
 @date_info_router.message(F.text == "📊 Date Info")
 async def show_date_info(message: types.Message):
-    if message.from_user.id != config.ADMIN_ID:
+    if not config.is_admin(message.from_user.id):
         return
 
     users = await get_all_vip_users()

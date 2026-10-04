@@ -12,7 +12,7 @@ class PostState(StatesGroup):
 
 @post_router.message(F.text == "📢 Post to Channel")
 async def start_post(message: types.Message, state: FSMContext):
-    if message.from_user.id != config.ADMIN_ID:
+    if not config.is_admin(message.from_user.id):
         return
     await message.answer(
         f"{e('broadcast')} <b>ወደ ቻናሎች ማሰራጫ</b>\n\n"

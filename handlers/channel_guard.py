@@ -45,7 +45,7 @@ async def guard_new_member(event: ChatMemberUpdated):
         return
 
     # ── Admin ከሆነ አትንካ ───────────────────────────────────────────────────
-    if user_id == config.ADMIN_ID:
+    if config.is_admin(user_id):
         return
 
     # ── DB ያረጋግጣ ─────────────────────────────────────────────────────────

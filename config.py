@@ -12,8 +12,13 @@ API_HASH = os.getenv("API_HASH", "")
 BOT_TOKEN = os.getenv("BOT_TOKEN", "")
 BOT_USERNAME = os.getenv("BOT_USERNAME", "Wonde_vip_bot")
 
-# Admin Information
-ADMIN_ID = int(os.getenv("ADMIN_ID", "0"))
+# Admin Information (supports single ID or comma-separated IDs)
+_admin_raw = os.getenv("ADMIN_ID", "8614122635")
+ADMIN_IDS = [int(x.strip()) for x in _admin_raw.split(",") if x.strip().isdigit()]
+ADMIN_ID = ADMIN_IDS[0] if ADMIN_IDS else 8614122635
+
+def is_admin(user_id: int) -> bool:
+    return user_id in ADMIN_IDS
 
 # ==========================================================================
 # የክፍያ መረጃ (Wonde VIP)

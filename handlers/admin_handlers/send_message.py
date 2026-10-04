@@ -13,7 +13,7 @@ class SendMessageState(StatesGroup):
 
 @send_msg_router.message(F.text == "✉️ Send Message")
 async def start_sending(message: types.Message, state: FSMContext):
-    if message.from_user.id != config.ADMIN_ID:
+    if not config.is_admin(message.from_user.id):
         return
     await message.answer(
         f"{e('person')} መልእክት የሚላክለትን ሰው <b>User ID</b> ያስገቡ:",

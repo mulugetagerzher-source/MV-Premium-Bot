@@ -172,14 +172,15 @@ async def _verify_and_finalize(message: Message, state: FSMContext,
         protect_content=True,
     )
 
-    try:
-        await message.bot.send_message(
-            config.ADMIN_ID,
-            f"{e('bell')} <b>አዲስ ክፍያ ተረጋግጧል</b>\n\n{report}",
-            parse_mode="HTML",
-        )
-    except Exception as ex:
-        logger.error(f"Admin notify: {ex}")
+    for aid in config.ADMIN_IDS:
+        try:
+            await message.bot.send_message(
+                aid,
+                f"{e('bell')} <b>አዲስ ክፍያ ተረጋግጧል</b>\n\n{report}",
+                parse_mode="HTML",
+            )
+        except Exception as ex:
+            logger.error(f"Admin notify {aid}: {ex}")
 
     await state.clear()
 

@@ -8,7 +8,7 @@ ban_users_router = Router()
 
 @ban_users_router.message(F.text == "🚫 Ban Users List")
 async def get_banned_list(message: types.Message):
-    if message.from_user.id != config.ADMIN_ID:
+    if not config.is_admin(message.from_user.id):
         return
     rows = await get_banned_users(limit=100)
 

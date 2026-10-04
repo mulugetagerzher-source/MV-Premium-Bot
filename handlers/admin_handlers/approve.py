@@ -8,7 +8,7 @@ approve_router = Router()
 
 @approve_router.callback_query(F.data.startswith("apruv_"))
 async def approve_payment(callback: types.CallbackQuery):
-    if callback.from_user.id != config.ADMIN_ID:
+    if not config.is_admin(callback.from_user.id):
         return
     parts       = callback.data.split("_")
     user_id     = int(parts[1])
@@ -40,7 +40,7 @@ async def approve_payment(callback: types.CallbackQuery):
 
 @approve_router.callback_query(F.data.startswith("dany_"))
 async def deny_payment(callback: types.CallbackQuery):
-    if callback.from_user.id != config.ADMIN_ID:
+    if not config.is_admin(callback.from_user.id):
         return
     user_id = int(callback.data.split("_")[1])
     try:

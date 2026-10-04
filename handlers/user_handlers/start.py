@@ -18,7 +18,7 @@ async def cmd_start(message: Message):
     await add_user(user_id, username, full_name, None)
 
     # ── Admin ─────────────────────────────────────────────────────────────
-    if user_id == config.ADMIN_ID:
+    if config.is_admin(user_id):
         admin_kb = ReplyKeyboardMarkup(
             keyboard=[
                 [KeyboardButton(text="📊 Date Info"),      KeyboardButton(text="💰 Payment Info")],
