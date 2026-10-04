@@ -1,32 +1,26 @@
-aiogram==3.4.1
+aiogram>=3.4.1
 aiosqlite==0.20.0
 apscheduler==3.10.4
 requests==2.31.0
 beautifulsoup4==4.12.3
 python-dotenv==1.0.1
 
-# CBE ደረሰኝ ማረጋገጫ (Playwright headless browser) — apps.cbe.com.et:100 PDF
-# አካሄድ ሙሉ ለሙሉ ተነስቷል፤ mbreciept.cbe.com.et SPA ገጽ ቀጥታ HTTP GET ላይ ምንም
-# አይመልስም ስለዚህ headless Chromium ራንደር ማድረግ ግድ ይላል (ልክ እንደ paste-to-verify)።
-# `pip install` ካደረግህ በኋላ ግድ የግድ ይህን ደግሞ ማሄድ አለብህ፦
-#   playwright install chromium
+# CBE Receipt verification (Playwright headless Chromium)
 playwright==1.47.0
 
-# ethiobank_receipts (የተካተተ/vendored ላይብረሪ) ለ Abyssinia/Awash/Telebirr ማረጋገጫ
-# (pdfplumber ደግሞ ለ PDF ደረሰኝ TID/link extraction ጥቅም ላይ ይውላል)
+# Bank receipt extractors
 pdfplumber==0.11.4
 selenium==4.24.0
-# BOA/Awash ደረሰኝ ገጾች bot-detection ስላሉዋቸው (ተረጋግጧል) - ተራ selenium በቂ ስላልሆነ
 undetected-chromedriver==3.5.5
 urllib3==2.2.2
 
-# ደረሰኝ ስክሪንሾት (ፎቶ) ላይ ትራንዛክሽን ቁጥር ለማንበብ (OCR)
+# OCR (Receipt screenshot text extraction)
 pytesseract==0.3.13
 Pillow==10.4.0
 
-# CBE ደረሰኝ ላይ ያለውን QR code ለማንበብ (ከOCR ይልቅ ብዙ ጊዜ ይበልጥ ትክክለኛ)
+# QR code decoding (OpenCV)
 opencv-python-headless==4.10.0.84
 numpy==1.26.4
 
-# Supabase Client
+# Supabase PostgreSQL Client
 supabase>=2.0.0
