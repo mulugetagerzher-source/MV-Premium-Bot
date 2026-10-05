@@ -286,11 +286,10 @@ async def get_expired_users() -> List[Dict[str, Any]]:
             return res.data or []
         return await asyncio.to_thread(_sync_expired)
 
-    now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     async with aiosqlite.connect(DB_PATH) as db:
         db.row_factory = aiosqlite.Row
         async with db.execute(
-            "SELECT * FROM users WHERE is_vip=1 AND expiry_date IS NOT NULL AND expiry_date<=?", (now_str,)
+            "SELECT * FROM users WHERE is_vip=1 AND expiry_date IS NOT NULL AND expiry_date<=?", (now_iso,)
         ) as cur:
             return [dict(r) for r in await cur.fetchall()]
 
@@ -298,13 +297,13 @@ async def get_expired_users() -> List[Dict[str, Any]]:
 
 # ── 10. ጊዜያቸው ሊያልቅ የቀረባቸው ተጠቃሚዎች ──────────────────────────────────
 async def get_expiring_soon_users(days: int = 1) -> List[Dict[str, Any]]:
-    now = datetime.now()
-    future = (now + timedelta(days=days)).strftime("%Y-%m-%d %H:%M:%S")
-    now_s = now.strftime("%Y-%m-%d %H:%M:%S")
+    now_utc = datetime.utcnow()
+    now_iso = now_utc.isoformat()
+    future_iso = (now_utc + timedelta(days=days)).isoformat()
 
     if USE_SUPABASE:
         def _sync_soon():
-            res = supabase_client.table("users").select("*").eq("is_vip", 1).gt("expiry_date", now_s).lte("expiry_date", future).execute()
+            res = supabase_client.table("users").select("*").eq("is_vip", 1).gt("expiry_date", now_iso).lte("expiry_date", future_iso).execute()
             return res.data or []
         return await asyncio.to_thread(_sync_soon)
 
@@ -312,7 +311,7 @@ async def get_expiring_soon_users(days: int = 1) -> List[Dict[str, Any]]:
         db.row_factory = aiosqlite.Row
         async with db.execute(
             "SELECT * FROM users WHERE is_vip=1 AND expiry_date>? AND expiry_date<=?",
-            (now_s, future)
+            (now_iso, future_iso)
         ) as cur:
             return [dict(r) for r in await cur.fetchall()]
 
@@ -354,27 +353,27 @@ async def get_all_users() -> List[Dict[str, Any]]:
 
 
 # ── 13. ክፍያ በ Transaction ID መፈለግ (Duplicate Check) ────────────────────────
-def get_payment_by_tid(transaction_id: str) -> Optional[Dict[str, Any]]:
-    """Synchronous lookup used in message handlers."""
+async def get_payment_by_tid(transaction_id: str) -> Optional[Dict[str, Any]]:
+    """Asynchronous lookup used in message handlers."""
     if USE_SUPABASE:
-        try:
-            res = supabase_client.table("payments").select("*").eq("transaction_id", transaction_id).limit(1).execute()
-            if res.data and len(res.data) > 0:
-                return res.data[0]
-            return None
-        except Exception as e:
-            logger.error(f"Error checking TID in Supabase: {e}")
-            return None
+        def _sync_lookup():
+            try:
+                res = supabase_client.table("payments").select("*").eq("transaction_id", transaction_id).limit(1).execute()
+                if res.data and len(res.data) > 0:
+                    return res.data[0]
+                return None
+            except Exception as e:
+                logger.error(f"Error checking TID in Supabase: {e}")
+                return None
+        return await asyncio.to_thread(_sync_lookup)
 
-    import sqlite3
-    conn = sqlite3.connect(DB_PATH)
-    cursor = conn.cursor()
-    cursor.execute("SELECT user_id, amount FROM payments WHERE transaction_id=?", (transaction_id,))
-    row = cursor.fetchone()
-    conn.close()
-    if row:
-        return {"user_id": row[0], "amount": row[1]}
-    return None
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute("SELECT user_id, amount FROM payments WHERE transaction_id=?", (transaction_id,)) as cur:
+            row = await cur.fetchone()
+            if row:
+                return dict(row)
+            return None
 
 
 # ── 14. አዲስ ክፍያ መመዝገብ ──────────────────────────────────────────────────

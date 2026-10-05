@@ -12,8 +12,14 @@ async def start_expiry_checker(bot):
         try:
             for user in await get_expired_users():
                 uid = user["user_id"]
-                # Channel banning disabled as requested
                 await deactivate_user(uid)
+                # Kick expired user from all VIP channels
+                for chat_id in config.CHANNELS:
+                    try:
+                        await bot.ban_chat_member(chat_id=chat_id, user_id=uid)
+                        await bot.unban_chat_member(chat_id=chat_id, user_id=uid)
+                    except Exception as ex:
+                        logger.debug(f"Could not remove expired user {uid} from {chat_id}: {ex}")
                 try:
                     await bot.send_message(
                         uid,

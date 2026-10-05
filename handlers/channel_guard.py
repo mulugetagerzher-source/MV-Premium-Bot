@@ -56,6 +56,11 @@ async def guard_new_member(event: ChatMemberUpdated):
         logger.error(f"Guard DB error: {ex}")
         return
 
-    # ── Kick functionality disabled as requested by user ──────────────────
-    logger.info(f"User {user_id} joined chat {chat_id} (auto-kick disabled).")
+    # ── Non-VIP user: kick from channel ────────────────────────────────────
+    try:
+        await event.bot.ban_chat_member(chat_id=chat_id, user_id=user_id)
+        await event.bot.unban_chat_member(chat_id=chat_id, user_id=user_id)
+        logger.info(f"Kicked non-VIP user {user_id} from chat {chat_id}")
+    except Exception as ex:
+        logger.warning(f"Failed to kick user {user_id} from chat {chat_id}: {ex}")
     return

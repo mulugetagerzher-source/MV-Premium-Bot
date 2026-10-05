@@ -29,7 +29,7 @@ async def _verify_and_finalize(message: Message, state: FSMContext,
         return
 
     # ── TID duplicate check ──────────────────────────────────────────────
-    existing = get_payment_by_tid(tid)
+    existing = await get_payment_by_tid(tid)
 
     if existing:
         await message.answer(
