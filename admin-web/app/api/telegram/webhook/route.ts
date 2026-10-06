@@ -10,6 +10,8 @@ import {
   getFile,
   banChatMember,
   unbanChatMember,
+  approveChatJoinRequest,
+  declineChatJoinRequest,
 } from "@/lib/telegram/bot";
 import { verifyPayment } from "@/lib/payments/receiptVerifier";
 import { parseBankSms } from "@/lib/sms/bankParser";
@@ -317,6 +319,37 @@ export async function POST(req: NextRequest) {
         if (joined) {
           // Auto-kick disabled as requested by user
           console.log(`User ${userId} joined channel ${channelId} (auto-kick disabled).`);
+        }
+      }
+    // ─────────────────────────────────────────────────────────────
+    // 2. CHAT JOIN REQUESTS (Auto-approve paid VIP users)
+    // ─────────────────────────────────────────────────────────────
+    if (update.chat_join_request) {
+      const cjr = update.chat_join_request;
+      const channelId = cjr.chat?.id;
+      const user = cjr.from;
+      const userId = user?.id;
+
+      if (userId && !user.is_bot) {
+        if (isAdminUser(userId)) {
+          await approveChatJoinRequest(channelId, userId, token);
+          return NextResponse.json({ ok: true });
+        }
+
+        const { data: dbUser } = await supabase
+          .from("users")
+          .select("is_vip, expiry_date")
+          .eq("user_id", userId)
+          .single();
+
+        const isVip = dbUser?.is_vip === 1 && (!dbUser.expiry_date || new Date(dbUser.expiry_date).getTime() > Date.now());
+
+        if (isVip) {
+          await approveChatJoinRequest(channelId, userId, token);
+          console.log(`Auto-approved VIP user ${userId} in chat ${channelId}`);
+        } else {
+          await declineChatJoinRequest(channelId, userId, token);
+          console.log(`Declined non-VIP user ${userId} in chat ${channelId}`);
         }
       }
       return NextResponse.json({ ok: true });

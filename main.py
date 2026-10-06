@@ -74,6 +74,7 @@ async def main():
                 'message',
                 'callback_query',
                 'chat_member',       # ← channel guard
+                'chat_join_request', # ← auto-approve VIP join requests
                 'channel_post',      # ← forward_sync (Wonde → Mule)
             ]
         )

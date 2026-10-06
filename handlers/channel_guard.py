@@ -8,7 +8,7 @@ channel_guard.py — VIP Channel Guard
 """
 import logging
 from aiogram import Router, F, types
-from aiogram.types import ChatMemberUpdated
+from aiogram.types import ChatMemberUpdated, ChatJoinRequest
 import config
 from database import is_user_vip
 from utils.emoji import e
@@ -64,3 +64,36 @@ async def guard_new_member(event: ChatMemberUpdated):
     except Exception as ex:
         logger.warning(f"Failed to kick user {user_id} from chat {chat_id}: {ex}")
     return
+
+
+@channel_guard_router.chat_join_request()
+async def handle_join_request(event: ChatJoinRequest):
+    """
+    chat_join_request event — ተጠቃሚ ቻናሉን ለመቀላቀል ጥያቄ (Join Request) ሲልክ ይሰማል።
+    ክፍያ የከፈለ ከሆነ አውቶማቲክ አፕሩቭ (Approve) ያደርጋል!
+    """
+    user    = event.from_user
+    user_id = user.id
+    chat_id = event.chat.id
+
+    if user.is_bot:
+        return
+
+    if config.is_admin(user_id):
+        try:
+            await event.approve()
+            logger.info(f"Approved admin {user_id} join request in chat {chat_id}")
+        except Exception as ex:
+            logger.warning(f"Failed to approve admin join request: {ex}")
+        return
+
+    try:
+        if await is_user_vip(user_id):
+            await event.approve()
+            logger.info(f"Auto-approved VIP user {user_id} in chat {chat_id}")
+        else:
+            await event.decline()
+            logger.warning(f"Declined non-VIP user {user_id} join request in chat {chat_id}")
+    except Exception as ex:
+        logger.error(f"Error handling join request for user {user_id} in chat {chat_id}: {ex}")
+
