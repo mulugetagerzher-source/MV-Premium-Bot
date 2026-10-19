@@ -321,6 +321,8 @@ export async function POST(req: NextRequest) {
           console.log(`User ${userId} joined channel ${channelId} (auto-kick disabled).`);
         }
       }
+    }
+
     // ─────────────────────────────────────────────────────────────
     // 2. CHAT JOIN REQUESTS (Auto-approve paid VIP users)
     // ─────────────────────────────────────────────────────────────
