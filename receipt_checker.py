@@ -469,7 +469,7 @@ async def verify_cbe_payment(user_input: str, expected_amount: float):
             "በቀጥታ ይላኩ።"
         ), actual, payer_name or None, payer_acct or None, reference
 
-    if actual < expected_amount or actual > expected_amount + 10:
+    if actual < expected_amount or actual > expected_amount + config.PAYMENT_TOLERANCE:
         return False, (
             f"❌ የከፈሉት {actual:.0f} ብር ከሚጠበቀው {expected_amount:.0f} ብር ጋር አይዛመድም።\n"
             f"እባክዎ {expected_amount:.0f} ብር ብቻ ይክፈሉ።"
@@ -515,7 +515,7 @@ def verify_payment(user_input: str, expected_amount: float):
     if not _account_suffix_matches(credited_number, config.TELEBIRR_NUMBER, digits=4):
         return False, "❌ የተቀባይ ስልክ ቁጥር አይመሳሰልም።", amount, payer_name, payer_number
     # Exact amount check — ±10 ብር tolerance
-    if amount is None or amount < expected_amount or amount > expected_amount + 10:
+    if amount is None or amount < expected_amount or amount > expected_amount + config.PAYMENT_TOLERANCE:
         return False, (
             f"❌ የከፈሉት {amount:.0f} ብር ከሚጠበቀው {expected_amount:.0f} ብር ጋር አይዛመድም።\n"
             f"እባክዎ {expected_amount:.0f} ብር ብቻ ይክፈሉ።"
@@ -558,7 +558,7 @@ def verify_awash_payment(url: str, expected_amount: float):
     if not _account_suffix_matches(beneficiary_account, config.AWASH_ACCOUNT):
         return False, "❌ የተቀባይ አካውንት ቁጥር አይመሳሰልም።", amount, payer_name, None
     # Exact amount check — ±10 ብር tolerance
-    if amount is None or amount < expected_amount or amount > expected_amount + 10:
+    if amount is None or amount < expected_amount or amount > expected_amount + config.PAYMENT_TOLERANCE:
         return False, (
             f"❌ የከፈሉት {amount:.0f} ብር ከሚጠበቀው {expected_amount:.0f} ብር ጋር አይዛመድም።\n"
             f"እባክዎ {expected_amount:.0f} ብር ብቻ ይክፈሉ።"
@@ -602,7 +602,7 @@ def verify_boa_payment(url: str, expected_amount: float):
     if not _account_suffix_matches(receiver_account, config.ABYSSINIA_ACCOUNT):
         return False, "❌ የተቀባይ አካውንት ቁጥር አይመሳሰልም።", amount, payer_name, None
     # Exact amount check — ±10 ብር tolerance
-    if amount is None or amount < expected_amount or amount > expected_amount + 10:
+    if amount is None or amount < expected_amount or amount > expected_amount + config.PAYMENT_TOLERANCE:
         return False, (
             f"❌ የከፈሉት {amount:.0f} ብር ከሚጠበቀው {expected_amount:.0f} ብር ጋር አይዛመድም።\n"
             f"እባክዎ {expected_amount:.0f} ብር ብቻ ይክፈሉ።"

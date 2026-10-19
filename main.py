@@ -58,7 +58,13 @@ async def main():
 
     # 5. ጊዜያቸው ያለቀባቸውን ሰዎች የሚፈትሸውን ስራ (Background Task) ማስጀመር
     # ይህ በየደቂቃው ዳታቤዙን እያየ ጊዜው ያለቀበትን Ban ያደርጋል
-    asyncio.create_task(start_expiry_checker(bot))
+    _expiry_task = asyncio.create_task(start_expiry_checker(bot))
+    # Task ሲወድቅ exception ዝም ብሎ እንዳይጠፋ — ወደ logger ይጻፋል
+    _expiry_task.add_done_callback(
+        lambda t: logger.error(f"Expiry checker crashed: {t.exception()}")
+        if t.done() and not t.cancelled() and t.exception()
+        else None
+    )
 
     # 6. ቦቱን ስራ ማስጀመር
     print("---------------------------------------")

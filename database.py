@@ -1,6 +1,6 @@
 import logging
 import asyncio
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Optional, List, Dict, Any, Tuple
 
 from config import DB_PATH, SUPABASE_URL, SUPABASE_KEY
@@ -96,7 +96,7 @@ async def add_user(user_id: int, username: str, full_name: str, phone: Optional[
                 "user_id": user_id,
                 "username": username or "",
                 "full_name": full_name or "",
-                "updated_at": datetime.utcnow().isoformat(),
+                "updated_at": datetime.now(timezone.utc).isoformat(),
             }
             if phone:
                 payload["phone"] = phone
@@ -136,7 +136,7 @@ async def get_user_phone(user_id: int) -> Optional[str]:
 async def update_user_phone(user_id: int, phone: str):
     if USE_SUPABASE:
         def _sync_update():
-            return supabase_client.table("users").update({"phone": phone, "updated_at": datetime.utcnow().isoformat()}).eq("user_id", user_id).execute()
+            return supabase_client.table("users").update({"phone": phone, "updated_at": datetime.now(timezone.utc).isoformat()}).eq("user_id", user_id).execute()
         await asyncio.to_thread(_sync_update)
         return
 
@@ -173,7 +173,7 @@ async def is_user_vip(user_id: int) -> bool:
                         supabase_client.table("users").upsert({
                             "user_id": uid,
                             "is_vip": 1,
-                            "updated_at": datetime.utcnow().isoformat()
+                            "updated_at": datetime.now(timezone.utc).isoformat()
                         }, on_conflict="user_id").execute()
                     except Exception:
                         pass
@@ -214,7 +214,7 @@ async def activate_vip(user_id: int, duration_type: str):
         "1year": timedelta(days=365)
     }
     delta = durations.get(duration_type, timedelta(days=30))
-    now_utc = datetime.utcnow()
+    now_utc = datetime.now(timezone.utc)
     start_now = now_utc.isoformat()
     expiry_now = (now_utc + delta).isoformat()
 
@@ -225,7 +225,7 @@ async def activate_vip(user_id: int, duration_type: str):
                 "is_vip": 1,
                 "start_date": start_now,
                 "expiry_date": expiry_now,
-                "updated_at": datetime.utcnow().isoformat()
+                "updated_at": datetime.now(timezone.utc).isoformat()
             }, on_conflict="user_id").execute()
         await asyncio.to_thread(_sync_activate)
         return
@@ -249,7 +249,7 @@ async def deactivate_user(user_id: int):
         def _sync_deact():
             return supabase_client.table("users").update({
                 "is_vip": 0,
-                "updated_at": datetime.utcnow().isoformat()
+                "updated_at": datetime.now(timezone.utc).isoformat()
             }).eq("user_id", uid).execute()
         await asyncio.to_thread(_sync_deact)
         return
@@ -275,7 +275,7 @@ async def get_all_vip_users() -> List[Dict[str, Any]]:
 
 # ── 9. ጊዜያቸው ያለቀባቸው ተጠቃሚዎች ─────────────────────────────────────────
 async def get_expired_users() -> List[Dict[str, Any]]:
-    now_iso = datetime.utcnow().isoformat()
+    now_iso = datetime.now(timezone.utc).isoformat()
 
     if USE_SUPABASE:
         def _sync_expired():
@@ -297,7 +297,7 @@ async def get_expired_users() -> List[Dict[str, Any]]:
 
 # ── 10. ጊዜያቸው ሊያልቅ የቀረባቸው ተጠቃሚዎች ──────────────────────────────────
 async def get_expiring_soon_users(days: int = 1) -> List[Dict[str, Any]]:
-    now_utc = datetime.utcnow()
+    now_utc = datetime.now(timezone.utc)
     now_iso = now_utc.isoformat()
     future_iso = (now_utc + timedelta(days=days)).isoformat()
 

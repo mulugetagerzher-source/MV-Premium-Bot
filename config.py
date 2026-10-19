@@ -80,3 +80,8 @@ PACKAGES = {
 DB_PATH = "mule_vip.db"
 SUPABASE_URL = os.getenv("SUPABASE_URL", "")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY", "")
+
+# የክፍያ ማረጋገጫ tolerance (ብር) — ተጠቃሚው ከሚጠበቀው ዙህ ብር ባነሰ ቢሆን ያልፋል
+# ለምሳሌ PAYMENT_TOLERANCE=10 → 300 ብር ሲጠበቅ 300–310 ያልፋል
+# .env ውስጥ PAYMENT_TOLERANCE=20 ብሎ ለመቀየር ይቻላል
+PAYMENT_TOLERANCE = float(os.getenv("PAYMENT_TOLERANCE", "10"))
